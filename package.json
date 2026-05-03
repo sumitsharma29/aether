@@ -14,7 +14,6 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.2.1",
-    "resend": "^6.12.2",
     "socket.io": "^4.8.3",
     "uuid": "^14.0.0"
   }

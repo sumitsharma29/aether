@@ -29,7 +29,7 @@ const handshakes = new Set();
 
 io.on('connection', (socket) => {
     // Capture IP address for local discovery
-    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress;
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.socket.remoteAddress;
     
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
@@ -96,6 +96,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, () => {
     console.log(`Aether Signaling Server running on port ${PORT}`);
 });
