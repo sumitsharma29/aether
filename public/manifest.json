@@ -1,0 +1,17 @@
+{
+  "name": "AETHER | P2P Sharing",
+  "short_name": "AETHER",
+  "description": "Quantum local P2P file sharing",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#040408",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
