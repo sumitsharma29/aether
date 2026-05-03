@@ -12,14 +12,16 @@ const io = new Server(server, {
     }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.resolve(__dirname, 'public')));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    console.log('Root request received');
+    res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
 });
 
 app.get('/void', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'void.html'));
+    console.log('Void request received');
+    res.sendFile(path.resolve(__dirname, 'public', 'void.html'));
 });
 
 // Store users: socket.id -> { ip, displayName, roomId }
