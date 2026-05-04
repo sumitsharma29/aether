@@ -35,12 +35,14 @@ io.on('connection', (socket) => {
     
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
-    socket.on('register', ({ displayName }) => {
-        // Automatically join room named after IP for local network discovery
-        const roomId = `ip-${clientIp}`;
+    socket.on('register', ({ displayName, roomCode }) => {
+        // Use custom roomCode if provided, otherwise fallback to IP
+        const roomId = roomCode ? `room-${roomCode}` : `ip-${clientIp}`;
         
         users.set(socket.id, { ip: clientIp, displayName, roomId });
         socket.join(roomId);
+        
+        console.log(`User ${displayName} (${socket.id}) joined room: ${roomId}`);
 
         // Notify others in the same room
         socket.to(roomId).emit('peer-joined', {

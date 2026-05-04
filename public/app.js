@@ -1,4 +1,8 @@
-const socket = io();
+// 1. UPDATE THIS URL to your actual Render URL
+const RENDER_URL = "https://aether-innt.onrender.com"; 
+
+// Initialize socket (Try RENDER_URL if on Netlify, otherwise relative)
+const socket = window.location.hostname === "localhost" ? io() : io(RENDER_URL);
 
 // Configuration
 const CHUNK_SIZE = 64 * 1024;
@@ -13,6 +17,15 @@ let selectedPeerId = null;
 let currentPIN = null;
 let pendingRequest = null;
 let history = JSON.parse(localStorage.getItem('aether_history') || '[]');
+
+// Room ID logic
+const urlParams = new URLSearchParams(window.location.search);
+let roomCode = urlParams.get('room') || Math.floor(100000 + Math.random() * 900000).toString();
+// Update URL without reloading to show the room code
+if (!urlParams.get('room')) {
+    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+}
 
 // DOM Elements
 const myDisplayName = document.getElementById('my-display-name');
@@ -33,6 +46,14 @@ const btnSelectFile = document.getElementById('btn-select-file');
 
 // Initialize UI
 myDisplayName.textContent = myName;
+document.getElementById('room-id-display').textContent = roomCode;
+
+function copyRoomLink() {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+        showNotification('Link copied! Send to Phone B');
+    });
+}
 
 // --- Premium Interaction Engine (Audio & Haptics) ---
 
@@ -126,7 +147,10 @@ function generatePIN() {
 // --- Socket Events ---
 
 socket.on('connect', () => {
-    socket.emit('register', { displayName: myName });
+    socket.emit('register', { 
+        displayName: myName,
+        roomCode: roomCode // Send the room code to join the same room
+    });
 });
 
 socket.on('init', (data) => {

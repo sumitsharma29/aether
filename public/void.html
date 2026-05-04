@@ -83,6 +83,10 @@
                 </div>
                 <span id="my-display-name" class="text-xs font-black text-white uppercase tracking-widest">Awaiting Identity...</span>
             </div>
+            <div class="hidden md:flex glass glass-bordered px-6 py-3 rounded-2xl items-center gap-4 cursor-pointer hover:bg-white/5" onclick="copyRoomLink()">
+                <div class="text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]">Room ID:</div>
+                <span id="room-id-display" class="text-xs font-black text-white uppercase tracking-widest">000000</span>
+            </div>
             <button onclick="toggleSettings()" class="glass glass-bordered w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all">
                 <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
             </button>
@@ -223,7 +227,7 @@
         <span>Ready</span>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
     <script src="app.js"></script>
     
