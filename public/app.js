@@ -1,9 +1,24 @@
-// 1. UPDATE THIS URL to your actual Render URL
+// 1. IMPORTANT: Update this to your ACTUAL Render backend URL
 const RENDER_URL = "https://aether-innt.onrender.com"; 
 
-// Initialize socket
-const isProduction = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('onrender.com');
-const socket = isProduction ? io(RENDER_URL) : io();
+// Smart Discovery Logic
+const isLocal = window.location.hostname === "localhost" || 
+                window.location.hostname === "127.0.0.1" || 
+                window.location.hostname.startsWith("192.168.") || 
+                window.location.hostname.startsWith("10.") || 
+                window.location.hostname.startsWith("172.");
+
+const isProduction = !isLocal;
+const socket = isLocal ? io() : io(RENDER_URL, { 
+    transports: ['websocket', 'polling'],
+    reconnectionAttempts: 10,
+    timeout: 30000 
+});
+
+console.log(`[AETHER] Bridge Mode: ${isProduction ? 'PRODUCTION' : 'LOCAL'}`);
+console.log(`[AETHER] Target: ${isLocal ? 'Self-Hosted' : RENDER_URL}`);
+
+
 
 // Configuration
 const CHUNK_SIZE = 64 * 1024;
@@ -148,11 +163,19 @@ function generatePIN() {
 // --- Socket Events ---
 
 socket.on('connect', () => {
+    console.log(`[AETHER] Connected to signaling server with ID: ${socket.id}`);
+    console.log(`[AETHER] Joining room: ${roomCode}`);
     socket.emit('register', { 
         displayName: myName,
-        roomCode: roomCode // Send the room code to join the same room
+        roomCode: roomCode 
     });
 });
+
+socket.on('connect_error', (err) => {
+    console.error(`[AETHER] Connection Error:`, err.message);
+    showNotification('Signaling Offline');
+});
+
 
 socket.on('init', (data) => {
     myId = data.id;

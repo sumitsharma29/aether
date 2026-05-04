@@ -30,8 +30,9 @@ const users = new Map();
 const handshakes = new Set();
 
 io.on('connection', (socket) => {
-    // Capture IP address for local discovery
-    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.socket.remoteAddress;
+    // Capture IP address (Handling proxies like Render/Netlify)
+    const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.request.socket.remoteAddress;
+    const clientIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
     
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
@@ -51,11 +52,14 @@ io.on('connection', (socket) => {
         socket.join(ipRoomId);
         if (linkRoomId) socket.join(linkRoomId);
         
-        console.log(`User ${displayName} (${socket.id}) joined rooms: ${ipRoomId} ${linkRoomId ? ', ' + linkRoomId : ''}`);
+        console.log(`[DEBUG] User Registered: ${displayName} (${socket.id})`);
+        console.log(`[DEBUG] IP: ${clientIp} -> Network Room: ${ipRoomId}`);
+        console.log(`[DEBUG] Room Code: ${roomCode} -> Link Room: ${linkRoomId}`);
 
         // Notify others in the rooms
         const notifyJoined = (roomId) => {
             if (!roomId) return;
+            console.log(`[DEBUG] Notifying room ${roomId} about new user ${displayName}`);
             socket.to(roomId).emit('user-joined', {
                 id: socket.id,
                 displayName: displayName
@@ -74,7 +78,10 @@ io.on('connection', (socket) => {
                 }
             }
         });
-        socket.emit('init', { id: socket.id, peers: Array.from(peersMap.values()) });
+        
+        const peersList = Array.from(peersMap.values());
+        console.log(`[DEBUG] Sending peer list to ${displayName}:`, peersList.map(p => p.displayName));
+        socket.emit('init', { id: socket.id, peers: peersList });
     });
 
     socket.on('signal', ({ target, signal }) => {
@@ -124,7 +131,29 @@ io.on('connection', (socket) => {
     });
 });
 
+const os = require('os');
 const PORT = process.env.PORT || 3000;
+
+function getLocalIp() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
 server.listen(PORT, () => {
-    console.log(`Aether Signaling Server running on port ${PORT}`);
+    const localIp = getLocalIp();
+    console.log(`
+    Aether Signaling Server running!
+    ---------------------------------
+    Local:   http://localhost:${PORT}
+    Network: http://${localIp}:${PORT}
+    ---------------------------------
+    (Use the Network URL on Phone B)
+    `);
 });
