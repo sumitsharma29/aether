@@ -37,10 +37,18 @@ io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
     function getNetworkRoom(ip) {
-        if (ip.includes('192.168.') || ip.includes('10.') || ip.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) || ip === '::1' || ip === '127.0.0.1' || ip.includes('::ffff:192.168.') || ip.includes('::ffff:127.0.0.1')) {
+        // Normalize IPv6-mapped IPv4
+        const cleanIp = ip.replace(/^::ffff:/, '');
+        
+        if (cleanIp.includes('192.168.') || cleanIp.includes('10.') || cleanIp.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) || cleanIp === '::1' || cleanIp === '127.0.0.1') {
             return 'local-network';
         }
-        return `ip-${ip}`;
+        // In production, we use the public IP. 
+        // We also group by the first 3 octets of IPv4 to handle some mobile network variations
+        if (cleanIp.includes('.')) {
+            return `ip-${cleanIp.split('.').slice(0, 3).join('.')}`;
+        }
+        return `ip-${cleanIp}`;
     }
 
     socket.on('register', ({ displayName, roomCode }) => {

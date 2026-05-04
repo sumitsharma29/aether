@@ -9,14 +9,27 @@ const isLocal = window.location.hostname === "localhost" ||
                 window.location.hostname.startsWith("172.");
 
 const isProduction = !isLocal;
-const socket = isLocal ? io() : io(RENDER_URL, { 
-    transports: ['websocket', 'polling'],
-    reconnectionAttempts: 10,
-    timeout: 30000 
-});
+const socket = isLocal 
+    ? io(window.location.origin, { transports: ['websocket', 'polling'] }) 
+    : io(RENDER_URL, { 
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        timeout: 45000,
+        forceNew: true 
+    });
 
-console.log(`[AETHER] Bridge Mode: ${isProduction ? 'PRODUCTION' : 'LOCAL'}`);
-console.log(`[AETHER] Target: ${isLocal ? 'Self-Hosted' : RENDER_URL}`);
+// Connection Health Check
+const statusIndicator = document.createElement('div');
+statusIndicator.className = 'fixed bottom-4 right-4 z-[200] px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest glass border border-white/5 flex items-center gap-2';
+statusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> <span>Connecting...</span>';
+document.body.appendChild(statusIndicator);
+
+function updateStatus(peersCount) {
+    const color = peersCount > 0 ? 'bg-green-500' : 'bg-cyan-500';
+    statusIndicator.innerHTML = `<span class="w-2 h-2 rounded-full ${color}"></span> <span>Online • Peers: ${peersCount}</span>`;
+}
+
+
 
 
 
@@ -163,17 +176,32 @@ function generatePIN() {
 // --- Socket Events ---
 
 socket.on('connect', () => {
-    console.log(`[AETHER] Connected to signaling server with ID: ${socket.id}`);
-    console.log(`[AETHER] Joining room: ${roomCode}`);
+    updateStatus(peers.size);
+    console.log(`[AETHER] Connected! ID: ${socket.id} | Room: ${roomCode}`);
     socket.emit('register', { 
         displayName: myName,
         roomCode: roomCode 
     });
 });
 
-socket.on('connect_error', (err) => {
-    console.error(`[AETHER] Connection Error:`, err.message);
-    showNotification('Signaling Offline');
+socket.on('init', (data) => {
+    myId = data.id;
+    console.log(`[AETHER] Initialized. Existing Peers: ${data.peers.length}`);
+    data.peers.forEach(p => addPeerUI(p.id, p.displayName));
+    updateStatus(peers.size);
+});
+
+socket.on('user-joined', (p) => {
+    console.log(`[AETHER] Peer Joined: ${p.displayName}`);
+    addPeerUI(p.id, p.displayName);
+    updateStatus(peers.size);
+    showNotification(`${p.displayName} Detected`);
+});
+
+socket.on('user-left', (id) => {
+    console.log(`[AETHER] Peer Left: ${id}`);
+    removePeerUI(id);
+    updateStatus(peers.size);
 });
 
 
