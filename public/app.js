@@ -1,8 +1,9 @@
 // 1. UPDATE THIS URL to your actual Render URL
 const RENDER_URL = "https://aether-innt.onrender.com"; 
 
-// Initialize socket (Try RENDER_URL if on Netlify, otherwise relative)
-const socket = window.location.hostname === "localhost" ? io() : io(RENDER_URL);
+// Initialize socket
+const isProduction = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('onrender.com');
+const socket = isProduction ? io(RENDER_URL) : io();
 
 // Configuration
 const CHUNK_SIZE = 64 * 1024;
