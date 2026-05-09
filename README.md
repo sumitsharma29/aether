@@ -2,7 +2,7 @@
 
 A high-performance, professional-grade peer-to-peer file sharing platform built for the modern web. AETHER bypasses cloud limitations by establishing direct, encrypted tunnels between devices for unlimited data transfer.
 
-![Aether Interface](logo.png)
+![Aether Interface](public/logo.png)
 
 ## 🚀 Professional Features
 
