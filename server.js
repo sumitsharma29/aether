@@ -37,16 +37,13 @@ io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
     function getNetworkRoom(ip) {
-        // Normalize IPv6-mapped IPv4
-        const cleanIp = ip.replace(/^::ffff:/, '');
+        let cleanIp = ip.replace(/^::ffff:/, '');
         
-        if (cleanIp.includes('192.168.') || cleanIp.includes('10.') || cleanIp.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) || cleanIp === '::1' || cleanIp === '127.0.0.1') {
-            return 'local-network';
-        }
-        // In production, we use the public IP. 
-        // We also group by the first 3 octets of IPv4 to handle some mobile network variations
+        // Group by the first half of the IP (very broad grouping for same network)
         if (cleanIp.includes('.')) {
-            return `ip-${cleanIp.split('.').slice(0, 3).join('.')}`;
+            return `ip-${cleanIp.split('.').slice(0, 2).join('.')}`;
+        } else if (cleanIp.includes(':')) {
+            return `ip-${cleanIp.split(':').slice(0, 2).join(':')}`;
         }
         return `ip-${cleanIp}`;
     }

@@ -1,4 +1,24 @@
-// 1. IMPORTANT: Update this to your ACTUAL Render backend URL
+const ADJECTIVES = ['Ethereal', 'Quantum', 'Neural', 'Astral', 'Luminous', 'Spectral', 'Hyper', 'Sonic', 'Vortex', 'Prime'];
+const NOUNS = ['Node', 'Pulse', 'Wave', 'Core', 'Link', 'Drift', 'Gate', 'Beam', 'Flux', 'Cell'];
+
+function generateName() {
+    return `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} ${NOUNS[Math.floor(Math.random() * NOUNS.length)]}`;
+}
+
+// Room ID logic
+const urlParams = new URLSearchParams(window.location.search);
+let roomCode = urlParams.get('room') || Math.floor(100000 + Math.random() * 900000).toString();
+try {
+    const display = document.getElementById('room-id-display');
+    if (display) display.textContent = roomCode;
+} catch (e) { console.error('UI Init Error:', e); }
+
+if (!urlParams.get('room')) {
+    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+}
+
+
 const RENDER_URL = "https://aether-innt.onrender.com"; 
 
 // Smart Discovery Logic
@@ -10,12 +30,10 @@ const isLocal = window.location.hostname === "localhost" ||
 
 const isProduction = !isLocal;
 const socket = isLocal 
-    ? io(window.location.origin, { transports: ['websocket', 'polling'] }) 
+    ? io() 
     : io(RENDER_URL, { 
         transports: ['websocket', 'polling'],
-        reconnectionAttempts: 20,
-        timeout: 45000,
-        forceNew: true 
+        reconnectionAttempts: 10
     });
 
 // Connection Health Check
@@ -33,6 +51,7 @@ function updateStatus(peersCount) {
 
 
 
+
 // Configuration
 const CHUNK_SIZE = 128 * 1024; // Increased to 128KB for pro performance
 let fileWriter = null;
@@ -41,24 +60,17 @@ let fileHandle = null;
 
 // State
 let myId = null;
-let myName = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} ${NOUNS[Math.floor(Math.random() * NOUNS.length)]}`;
-const peers = new Map();
+let myName = generateName();
+let peers = new Map();
 let selectedPeerId = null;
 let currentPIN = null;
 let pendingRequest = null;
 let isTransferring = false;
 let shouldAbort = false;
-let history = JSON.parse(localStorage.getItem('aether_history') || '[]');
-
-
-// Room ID logic
-const urlParams = new URLSearchParams(window.location.search);
-let roomCode = urlParams.get('room') || Math.floor(100000 + Math.random() * 900000).toString();
-// Update URL without reloading to show the room code
-if (!urlParams.get('room')) {
-    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
-    window.history.pushState({ path: newUrl }, '', newUrl);
-}
+let history = [];
+try {
+    history = JSON.parse(localStorage.getItem('aether_history') || '[]');
+} catch (e) { console.error('Storage Error:', e); }
 
 // DOM Elements
 const myDisplayName = document.getElementById('my-display-name');
@@ -68,6 +80,7 @@ const fileInput = document.getElementById('file-input');
 const notification = document.getElementById('notification');
 const dragOverlay = document.getElementById('drag-overlay');
 const settingsPanel = document.getElementById('settings-panel');
+
 
 // Modals
 const modalSelection = document.getElementById('modal-selection');
@@ -606,6 +619,12 @@ function toggleHistory() {
         drawer.classList.add('translate-x-0');
     }
 }
+
+function toggleDebug() {
+    const panel = document.getElementById('debug-console');
+    panel.classList.toggle('hidden');
+}
+
 
 
 // --- Drag and Drop ---
