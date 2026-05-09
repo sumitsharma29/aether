@@ -2,12 +2,15 @@ const CACHE_NAME = 'aether-v1';
 const ASSETS = [
   '/',
   '/index.html',
+  '/void.html',
   '/app.js',
   '/logo.png',
+  '/security.png',
+  '/speed.png',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js',
-  '/socket.io/socket.io.js'
+  'https://cdn.socket.io/4.7.5/socket.io.min.js'
 ];
 
 self.addEventListener('install', (event) => {

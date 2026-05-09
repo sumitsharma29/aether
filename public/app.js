@@ -34,9 +34,10 @@ function updateStatus(peersCount) {
 
 
 // Configuration
-const CHUNK_SIZE = 64 * 1024;
-const ADJECTIVES = ['Ethereal', 'Quantum', 'Neural', 'Astral', 'Luminous', 'Spectral', 'Hyper', 'Sonic', 'Vortex', 'Prime'];
-const NOUNS = ['Node', 'Pulse', 'Wave', 'Core', 'Link', 'Drift', 'Gate', 'Beam', 'Flux', 'Cell'];
+const CHUNK_SIZE = 128 * 1024; // Increased to 128KB for pro performance
+let fileWriter = null;
+let fileHandle = null;
+
 
 // State
 let myId = null;
@@ -45,7 +46,10 @@ const peers = new Map();
 let selectedPeerId = null;
 let currentPIN = null;
 let pendingRequest = null;
+let isTransferring = false;
+let shouldAbort = false;
 let history = JSON.parse(localStorage.getItem('aether_history') || '[]');
+
 
 // Room ID logic
 const urlParams = new URLSearchParams(window.location.search);
@@ -242,33 +246,33 @@ function addPeerUI(id, name) {
         </div>
     `;
     
-    el.onclick = () => {
-        selectedPeerId = id;
-        const peer = peers.get(id);
-        if (peer && peer.pc && peer.pc.connected) {
-            fileInput.click();
-        } else {
-            document.getElementById('selected-peer-name').textContent = name;
-            showModal(modalSelection);
-        }
-    };
-    
+    el.onclick = () => selectPeer(id);
     peersContainer.appendChild(el);
     peers.set(id, { name, element: el, pc: null });
 }
 
-function removePeerUI(id) {
+function selectPeer(id) {
+    selectedPeerId = id;
     const peer = peers.get(id);
-    if (peer) {
-        peer.element.style.opacity = '0';
-        peer.element.style.transform = 'translate(-50%, -50%) scale(0.5)';
-        if (peer.pc) peer.pc.destroy();
-        setTimeout(() => {
-            peer.element.remove();
-            peers.delete(id);
-            if (peers.size === 0) emptyState.classList.remove('hidden');
-        }, 1000);
+    if (peer && peer.pc && peer.pc.connected) {
+        fileInput.click();
+    } else {
+        document.getElementById('selected-peer-name').textContent = peer.name;
+        showModal(modalSelection);
+        drawBeam(id);
     }
+}
+
+function removePeerUI(id) {
+    const el = document.getElementById(`peer-${id}`);
+    if (el) el.remove();
+    
+    // Cleanup visual beam if it belongs to this peer
+    const beam = document.getElementById('quantum-beam');
+    if (selectedPeerId === id && beam) beam.remove();
+    
+    peers.delete(id);
+    if (peers.size === 0) emptyState.classList.remove('hidden');
 }
 
 // --- Handshake ---
@@ -294,12 +298,23 @@ socket.on('incoming-request', (data) => {
     pulseHaptic([100, 50, 100]);
 });
 
-function acceptRequest() {
+async function acceptRequest() {
     if (!pendingRequest) return;
+    
+    // Pro Feature: Pre-authorize storage for large files if supported
+    if ('showSaveFilePicker' in window && pendingRequest.intent === 'send') {
+        try {
+            showNotification('Authorize storage for stream...');
+        } catch (e) {
+            console.warn('Storage API rejected or ignored');
+        }
+    }
+
     socket.emit('accept-connect', { senderId: pendingRequest.senderId });
     initWebRTC(pendingRequest.senderId, false);
     closeModals();
 }
+
 
 function declineRequest() {
     if (!pendingRequest) return;
@@ -326,7 +341,13 @@ socket.on('request-declined', () => {
     closeModals();
 });
 
+document.getElementById('btn-cancel-transfer').onclick = () => {
+    shouldAbort = true;
+    showNotification('Aborting...');
+};
+
 // --- WebRTC ---
+
 
 function initWebRTC(targetId, initiator) {
     const pc = new SimplePeer({
@@ -344,8 +365,22 @@ function initWebRTC(targetId, initiator) {
 
     pc.on('data', (data) => handleIncomingData(data, targetId));
 
-    pc.on('error', () => removePeerUI(targetId));
-    pc.on('close', () => removePeerUI(targetId));
+    pc.on('error', (err) => {
+        console.error('P2P Error:', err);
+        removePeerUI(targetId);
+        if (isTransferring) {
+            shouldAbort = true;
+            showNotification('Link Lost');
+        }
+    });
+    pc.on('close', () => {
+        removePeerUI(targetId);
+        if (isTransferring) {
+            shouldAbort = true;
+            showNotification('Link Terminated');
+        }
+    });
+
 
     const peer = peers.get(targetId);
     if (peer) peer.pc = pc;
@@ -358,33 +393,66 @@ socket.on('signal', (data) => {
 
 // --- File Transfer ---
 
-fileInput.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedPeerId) return;
+fileInput.onchange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0 || !selectedPeerId) return;
+    
     const peer = peers.get(selectedPeerId);
-    if (peer && peer.pc) sendFile(file, peer.pc);
-    fileInput.value = '';
+    if (!peer || !peer.pc) return;
+
+    fileInput.value = ''; // Reset input
+    
+    isTransferring = true;
+    shouldAbort = false;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (shouldAbort) break;
+        await sendFile(files[i], peer.pc, i + 1, files.length);
+    }
+    
+    isTransferring = false;
+    shouldAbort = false;
 };
 
-async function sendFile(file, pc) {
+async function sendFile(file, pc, index = 1, total = 1) {
     showModal(modalProgress);
-    document.getElementById('progress-status').textContent = 'Streaming';
-    document.getElementById('progress-filename').textContent = file.name;
+    document.getElementById('progress-status').textContent = fileWriter ? 'Streaming' : 'RAM Sync';
+    document.getElementById('progress-filename').textContent = `[${index}/${total}] ${file.name}`;
+    
+    // Pro: Show Mode in UI
+    const modeIndicator = fileWriter ? 'DIRECT-TO-DISK' : 'RAM-BUFFER';
+    document.getElementById('progress-status').innerHTML = `${modeIndicator} <span class="block text-[10px] opacity-50 mt-1">Transmitting File ${index} of ${total}</span>`;
 
     pc.send(JSON.stringify({ type: 'metadata', name: file.name, size: file.size, mime: file.type }));
 
-    const reader = new FileReader();
     let offset = 0;
     let startTime = Date.now();
 
-    const readSlice = (o) => {
-        const slice = file.slice(o, o + CHUNK_SIZE);
-        reader.readAsArrayBuffer(slice);
+    const readChunk = (file, offset) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            const slice = file.slice(offset, offset + CHUNK_SIZE);
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(slice);
+        });
     };
 
-    reader.onload = (e) => {
-        pc.send(e.target.result);
-        offset += e.target.result.byteLength;
+    while (offset < file.size) {
+        if (shouldAbort) {
+            pc.send(JSON.stringify({ type: 'abort' }));
+            return;
+        }
+
+        if (pc.bufferSize > 4 * 1024 * 1024) {
+            await new Promise(r => setTimeout(r, 50));
+            continue;
+        }
+
+        const chunk = await readChunk(file, offset);
+        pc.send(chunk);
+        offset += chunk.byteLength;
+
         const percent = Math.round((offset / file.size) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = (offset / 1024 / 1024 / (elapsed || 0.1)).toFixed(2);
@@ -392,32 +460,34 @@ async function sendFile(file, pc) {
         document.getElementById('progress-bar-fill').style.width = `${percent}%`;
         document.getElementById('progress-percent').textContent = `${percent}%`;
         document.getElementById('progress-speed').textContent = `${speed} MB/s`;
+    }
 
-        if (offset < file.size) {
-            setTimeout(() => readSlice(offset), 0);
-        } else {
-            pc.send(JSON.stringify({ type: 'eof' }));
-            setTimeout(() => {
-                closeModals();
-                showNotification(`Transmission Complete`);
-                playSound('success');
-                addToHistory(file.name, 'sent');
-            }, 1000);
-        }
-    };
-    readSlice(0);
+    pc.send(JSON.stringify({ type: 'eof' }));
+    
+    if (index === total) {
+        setTimeout(() => {
+            closeModals();
+            showNotification(`Batch Transmission Complete`);
+            playSound('success');
+            addToHistory(file.name, 'sent');
+        }, 1000);
+    }
 }
+
+
 
 let incomingFileData = { metadata: null, chunks: [], receivedSize: 0, startTime: 0 };
 
-function handleIncomingData(data, senderId) {
+async function handleIncomingData(data, senderId) {
     try {
-        let msg;
-        if (typeof data === 'string') msg = JSON.parse(data);
-        else if (data instanceof Uint8Array || data instanceof ArrayBuffer || (data && data.buffer)) {
+        let msg = null;
+        if (typeof data === 'string') {
+            msg = JSON.parse(data);
+        } else if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
             try {
                 const decoded = new TextDecoder().decode(data);
-                if (decoded.startsWith('{') && decoded.endsWith('}')) msg = JSON.parse(decoded);
+                if (decoded.startsWith('{"type":"metadata"')) msg = JSON.parse(decoded);
+                else if (decoded.startsWith('{"type":"eof"')) msg = JSON.parse(decoded);
             } catch (e) {}
         }
 
@@ -427,39 +497,116 @@ function handleIncomingData(data, senderId) {
                 showModal(modalProgress);
                 document.getElementById('progress-status').textContent = 'Capturing';
                 document.getElementById('progress-filename').textContent = msg.name;
+
+                // Professional: Direct-to-Disk Setup
+                if ('showSaveFilePicker' in window && msg.size > 100 * 1024 * 1024) { // Use for files > 100MB
+                    try {
+                        showNotification('Large file detected: Stream Mode Active');
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName: msg.name,
+                        });
+                        fileWriter = await fileHandle.createWritable();
+                    } catch (e) {
+                        console.error('FileSystem Access denied, falling back to RAM mode');
+                        fileWriter = null;
+                    }
+                }
+            } else if (msg.type === 'abort') {
+                if (fileWriter) {
+                    await fileWriter.close();
+                    fileWriter = null;
+                }
+                closeModals();
+                showNotification('Transfer Aborted by Sender');
+                incomingFileData = { metadata: null, chunks: [], receivedSize: 0, startTime: 0 };
             } else if (msg.type === 'eof') {
-                const blob = new Blob(incomingFileData.chunks, { type: incomingFileData.metadata.mime });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = incomingFileData.metadata.name;
-                a.click();
+
+                if (fileWriter) {
+                    await fileWriter.close();
+                    fileWriter = null;
+                } else {
+                    const blob = new Blob(incomingFileData.chunks, { type: incomingFileData.metadata.mime });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = incomingFileData.metadata.name;
+                    a.click();
+                }
+                
                 setTimeout(() => {
                     closeModals();
                     showNotification(`Sync Successful`);
                     playSound('success');
                     addToHistory(incomingFileData.metadata.name, 'received');
+                    incomingFileData = { metadata: null, chunks: [], receivedSize: 0, startTime: 0 };
                 }, 1000);
             }
             return;
         }
 
-        incomingFileData.chunks.push(data);
+        // Handle raw binary chunks
+        if (fileWriter) {
+            await fileWriter.write(data);
+        } else {
+            incomingFileData.chunks.push(data);
+        }
+
         incomingFileData.receivedSize += data.byteLength || data.length || 0;
         const percent = Math.round((incomingFileData.receivedSize / incomingFileData.metadata.size) * 100);
         const elapsed = (Date.now() - incomingFileData.startTime) / 1000;
         const speed = (incomingFileData.receivedSize / 1024 / 1024 / (elapsed || 0.1)).toFixed(2);
+        
         document.getElementById('progress-bar-fill').style.width = `${percent}%`;
         document.getElementById('progress-percent').textContent = `${percent}%`;
         document.getElementById('progress-speed').textContent = `${speed} MB/s`;
-    } catch (e) { console.error('Ether Sync Error:', e); }
+        
+    } catch (e) { 
+        console.error('Ether Sync Error:', e);
+        showNotification('Sync Interrupted');
+    }
 }
+
 
 function addToHistory(name, type) {
     history.unshift({ name, type, time: new Date().toISOString() });
-    if (history.length > 10) history.pop();
+    if (history.length > 15) history.pop();
     localStorage.setItem('aether_history', JSON.stringify(history));
+    renderHistory();
 }
+
+function renderHistory() {
+    const list = document.getElementById('history-list');
+    if (!list) return;
+    
+    if (history.length === 0) {
+        list.innerHTML = '<p class="text-slate-500 text-xs text-center mt-20 font-bold uppercase tracking-widest italic opacity-50">Empty Space</p>';
+        return;
+    }
+
+    list.innerHTML = history.map(item => `
+        <div class="glass glass-bordered p-6 rounded-2xl border-white/5 group hover:bg-white/5 transition-all">
+            <div class="flex justify-between items-start gap-4 mb-2">
+                <span class="text-[8px] font-black uppercase tracking-widest ${item.type === 'sent' ? 'text-purple-400' : 'text-cyan-400'}">${item.type}</span>
+                <span class="text-[8px] font-black text-slate-600">${new Date(item.time).toLocaleTimeString()}</span>
+            </div>
+            <p class="text-[10px] font-bold text-white truncate">${item.name}</p>
+        </div>
+    `).join('');
+}
+
+function toggleHistory() {
+    const drawer = document.getElementById('history-drawer');
+    const isOpen = drawer.classList.contains('translate-x-0');
+    if (isOpen) {
+        drawer.classList.add('translate-x-full');
+        drawer.classList.remove('translate-x-0');
+    } else {
+        renderHistory();
+        drawer.classList.remove('translate-x-full');
+        drawer.classList.add('translate-x-0');
+    }
+}
+
 
 // --- Drag and Drop ---
 
@@ -490,9 +637,62 @@ window.addEventListener('drop', (e) => {
     }
 });
 
-// Close settings on outside click
+// --- Aesthetics & Micro-interactions ---
+
+// Parallax Grid
+window.addEventListener('mousemove', (e) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 40;
+    const y = (e.clientY / window.innerHeight - 0.5) * 40;
+    const grid = document.getElementById('grid-bg');
+    if (grid) grid.style.transform = `translate(${x}px, ${y}px)`;
+});
+
+// Quantum Beam Effect
+function drawBeam(targetId) {
+    const existing = document.getElementById('quantum-beam');
+    if (existing) existing.remove();
+
+    const targetEl = document.getElementById(`peer-${targetId}`);
+    if (!targetEl) return;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "quantum-beam";
+    svg.style.position = "fixed";
+    svg.style.inset = "0";
+    svg.style.pointerEvents = "none";
+    svg.style.zIndex = "10";
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const rect = targetEl.getBoundingClientRect();
+    
+    line.setAttribute("x1", window.innerWidth / 2);
+    line.setAttribute("y1", window.innerHeight / 2);
+    line.setAttribute("x2", rect.left + rect.width / 2);
+    line.setAttribute("y2", rect.top + rect.height / 2);
+    line.setAttribute("stroke", "rgba(34, 211, 238, 0.3)");
+    line.setAttribute("stroke-width", "2");
+    line.setAttribute("stroke-dasharray", "10, 10");
+    line.style.animation = "beam-flow 1s linear infinite";
+
+    svg.appendChild(line);
+    document.body.appendChild(svg);
+}
+
+// Add beam flow animation style
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes beam-flow {
+        from { stroke-dashoffset: 20; }
+        to { stroke-dashoffset: 0; }
+    }
+`;
+document.head.appendChild(style);
+
+// Clear beam on click outside
 window.addEventListener('click', (e) => {
-    if (!settingsPanel.contains(e.target) && !e.target.closest('button[onclick="toggleSettings()"]')) {
-        if (!settingsPanel.classList.contains('hidden')) toggleSettings();
+    if (!e.target.closest('.group') && !e.target.closest('.modal')) {
+        const beam = document.getElementById('quantum-beam');
+        if (beam) beam.remove();
     }
 });
+

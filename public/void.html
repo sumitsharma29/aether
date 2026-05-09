@@ -20,24 +20,53 @@
     
     <style>
         :root {
-            --primary: 199 89% 48%;
-            --secondary: 263 85% 65%;
-            --accent: 180 100% 50%;
-            --bg: 240 10% 4%;
+            --primary: 190, 90%, 50%;
+            --secondary: 280, 80%, 60%;
+            --bg: 230, 35%, 5%;
         }
-        
+
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: hsl(var(--bg));
-            color: #f8fafc;
+            background: hsl(var(--bg));
+            color: white;
             overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
+            height: 100vh;
+        }
+
+        /* Neural Grid Background */
+        .grid-bg {
+            position: fixed;
+            inset: -100px;
+            background-image: 
+                linear-gradient(to right, rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(circle at center, black, transparent 80%);
+            z-index: -1;
+            transition: transform 0.2s ease-out;
+            pointer-events: none;
+        }
+
+        /* High-Tech Scan Lines */
+        .scan-lines {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.3;
+        }
+
+        .glass {
+            background: rgba(10, 15, 25, 0.6);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
         }
 
         #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.6; }
         .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 10%, hsla(var(--primary), 0.15) 0, transparent 40%), radial-gradient(circle at 90% 90%, hsla(var(--secondary), 0.15) 0, transparent 40%); filter: blur(80px); }
 
-        .glass { background: rgba(10, 10, 20, 0.4); backdrop-filter: blur(30px) saturate(200%); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
         .glass-bordered { border: 1px solid rgba(255, 255, 255, 0.08); }
 
         .radar-ring { position: absolute; border: 1px solid hsla(var(--primary), 0.1); border-radius: 50%; pointer-events: none; }
@@ -66,7 +95,10 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 px-8 py-10 flex justify-between items-center transition-all duration-500" id="main-nav">
+    <div class="grid-bg" id="grid-bg"></div>
+    <div class="scan-lines"></div>
+
+    <nav class="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-50">
         <div class="flex items-center gap-6 group cursor-pointer" onclick="location.href='/'">
             <img src="logo.png" alt="AETHER" class="w-14 h-14 object-contain group-hover:scale-110 transition-transform duration-500">
             <div>
@@ -111,8 +143,21 @@
                     <div class="w-11 h-6 bg-slate-800 rounded-full peer-checked:bg-cyan-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
                 </label>
             </div>
+            <button onclick="toggleHistory()" class="w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 transition-all border border-white/5">View Transmission Log</button>
         </div>
     </div>
+
+    <!-- History Drawer -->
+    <div id="history-drawer" class="fixed top-0 right-0 h-full w-full md:w-96 glass backdrop-blur-3xl z-[100] transform translate-x-full transition-transform duration-700 p-12 overflow-y-auto">
+        <div class="flex justify-between items-center mb-12">
+            <h3 class="text-3xl font-black italic tracking-tighter">Sync <span class="text-gradient">History</span></h3>
+            <button onclick="toggleHistory()" class="text-slate-500 hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div id="history-list" class="space-y-4"></div>
+    </div>
+
 
     <!-- App Space -->
     <main class="flex-grow flex flex-col items-center justify-center relative w-full overflow-hidden">
@@ -208,7 +253,7 @@
             <div class="relative w-full bg-slate-950 rounded-full h-6 mb-10 overflow-hidden border border-white/5 p-1">
                 <div id="progress-bar-fill" class="bg-gradient-to-r from-cyan-600 via-indigo-500 to-purple-400 h-full rounded-full w-0 transition-all duration-300 shadow-[0_0_30px_hsla(var(--primary),0.8)]"></div>
             </div>
-            <div class="flex justify-between items-end px-2">
+            <div class="flex justify-between items-end px-2 mb-10">
                 <div class="text-left">
                     <p class="text-[9px] font-black uppercase tracking-[0.5em] text-slate-700 mb-3">Bandwidth</p>
                     <span id="progress-speed" class="text-2xl font-black text-white italic">0.00 MB/s</span>
@@ -218,10 +263,12 @@
                     <span id="progress-percent" class="text-6xl font-black text-cyan-400 italic leading-none tracking-tighter">0%</span>
                 </div>
             </div>
+            <button id="btn-cancel-transfer" class="text-red-500 hover:text-red-400 font-black text-[10px] uppercase tracking-[0.3em] transition-all underline underline-offset-8">Abort Transmission</button>
         </div>
     </div>
 
-    <input type="file" id="file-input" class="hidden">
+    <input type="file" id="file-input" class="hidden" multiple>
+
     <div id="notification" class="fixed bottom-14 left-1/2 -translate-x-1/2 bg-cyan-400 text-black px-10 py-5 rounded-[2.5rem] shadow-[0_0_40px_rgba(34,211,238,0.4)] transition-all duration-1000 translate-y-40 opacity-0 z-[200] font-black text-[10px] uppercase tracking-[0.4em] flex items-center gap-4">
         <div class="w-2 h-2 bg-black rounded-full animate-ping"></div>
         <span>Ready</span>
