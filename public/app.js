@@ -106,9 +106,22 @@ const SERVER_BASE_URL = isStaticHost ? RENDER_BACKEND_URL : window.location.orig
 
 // Safe Socket Initialization
 let socket = null;
+let scriptInjected = false;
+
 function initSocket() {
     if (typeof io === 'undefined') {
-        console.warn('[AETHER] Socket.IO client script not loaded yet. Retrying in 500ms...');
+        if (!scriptInjected) {
+            scriptInjected = true;
+            console.log(`[AETHER] Dynamically loading Socket.IO client from ${SERVER_BASE_URL}...`);
+            const script1 = document.createElement('script');
+            script1.src = 'https://cdn.socket.io/4.8.1/socket.io.min.js';
+            document.head.appendChild(script1);
+
+            const script2 = document.createElement('script');
+            script2.src = `${SERVER_BASE_URL}/socket.io/socket.io.js`;
+            document.head.appendChild(script2);
+        }
+        console.warn('[AETHER] Socket.IO client script pending. Retrying in 500ms...');
         setTimeout(initSocket, 500);
         return;
     }
