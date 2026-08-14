@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const crypto = require('crypto');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -9,37 +11,123 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    maxHttpBufferSize: 1e8 // 100 MB buffer limit for socket streams
 });
 
+// Middleware for parsing JSON and large payloads
+app.use(express.json({ limit: '100mb' }));
+app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
 app.use(express.static(path.resolve(__dirname, 'public')));
 
+// Store temporary HTTP shared files: fileId -> { name, mime, data, createdAt, expiresAt }
+const httpFiles = new Map();
+
+// Auto cleanup expired HTTP files every minute
+setInterval(() => {
+    const now = Date.now();
+    for (const [id, file] of httpFiles.entries()) {
+        if (now > file.expiresAt) {
+            httpFiles.delete(id);
+            console.log(`[HTTP SHARE] Expired file auto-removed: ${id}`);
+        }
+    }
+}, 60000);
+
 app.get('/', (req, res) => {
-    console.log('Root request received');
     res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
 });
 
 app.get('/void', (req, res) => {
-    console.log('Void request received');
     res.sendFile(path.resolve(__dirname, 'public', 'void.html'));
 });
 
-// Store users: socket.id -> { ip, displayName, roomId }
+// Health check endpoint for hosting diagnostics
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        appName: 'Aether Transfer System',
+        activeUsers: users.size,
+        sharedFilesCount: httpFiles.size,
+        uptime: process.uptime()
+    });
+});
+
+// Tier 3 HTTP Upload Endpoint for link/QR code sharing
+app.post('/api/upload', (req, res) => {
+    try {
+        const { name, mime, data } = req.body;
+        if (!name || !data) {
+            return res.status(400).json({ error: 'Invalid file data' });
+        }
+
+        const fileId = crypto.randomBytes(4).toString('hex'); // 8 char hex ID
+        const buffer = Buffer.from(data, 'base64');
+        const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
+
+        httpFiles.set(fileId, {
+            name,
+            mime: mime || 'application/octet-stream',
+            data: buffer,
+            size: buffer.length,
+            createdAt: Date.now(),
+            expiresAt
+        });
+
+        console.log(`[HTTP SHARE] New file uploaded: ${name} (${buffer.length} bytes), ID: ${fileId}`);
+        res.json({
+            success: true,
+            fileId,
+            name,
+            size: buffer.length,
+            downloadUrl: `/api/download/${fileId}`,
+            expiresInMinutes: 15
+        });
+    } catch (err) {
+        console.error('[HTTP SHARE] Upload error:', err);
+        res.status(500).json({ error: 'File upload failed' });
+    }
+});
+
+// Tier 3 HTTP Download Endpoint
+app.get('/api/download/:fileId', (req, res) => {
+    const fileId = req.params.fileId;
+    const file = httpFiles.get(fileId);
+
+    if (!file) {
+        return res.status(404).send(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>AETHER | File Expired or Not Found</title></head>
+            <body style="background:#090a0f; color:#fff; font-family:sans-serif; text-align:center; padding-top:100px;">
+                <h1 style="color:#ef4444;">File Link Expired or Invalid</h1>
+                <p style="color:#94a3b8;">This file download link has expired or has already been removed.</p>
+                <a href="/void" style="color:#06b6d4; text-decoration:none; font-weight:bold;">← Return to Aether App</a>
+            </body>
+            </html>
+        `);
+    }
+
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Content-Length', file.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
+    res.send(file.data);
+});
+
+// Store users: socket.id -> { ip, displayName, ipRoomId, linkRoomId }
 const users = new Map();
 // Store handshakes: "sender-receiver" -> true
 const handshakes = new Set();
 
 io.on('connection', (socket) => {
-    // Capture IP address (Handling proxies like Render/Netlify)
+    // Capture IP address (Handling proxies like Render/Netlify/Vercel)
     const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.request.socket.remoteAddress;
-    const clientIp = rawIp.split(',')[0].trim().replace(/^.*:/, '');
+    const clientIp = (rawIp || '127.0.0.1').split(',')[0].trim().replace(/^.*:/, '');
     
     console.log(`User connected: ${socket.id} from ${clientIp}`);
 
     function getNetworkRoom(ip) {
         let cleanIp = ip.replace(/^::ffff:/, '');
-        
-        // Group by the first half of the IP (very broad grouping for same network)
         if (cleanIp.includes('.')) {
             return `ip-${cleanIp.split('.').slice(0, 2).join('.')}`;
         } else if (cleanIp.includes(':')) {
@@ -57,22 +145,7 @@ io.on('connection', (socket) => {
         socket.join(ipRoomId);
         if (linkRoomId) socket.join(linkRoomId);
         
-        console.log(`[DEBUG] User Registered: ${displayName} (${socket.id})`);
-        console.log(`[DEBUG] IP: ${clientIp} -> Network Room: ${ipRoomId}`);
-        console.log(`[DEBUG] Room Code: ${roomCode} -> Link Room: ${linkRoomId}`);
-
-        // Notify others in the rooms
-        const notifyJoined = (roomId) => {
-            if (!roomId) return;
-            console.log(`[DEBUG] Notifying room ${roomId} about new user ${displayName}`);
-            socket.to(roomId).emit('user-joined', {
-                id: socket.id,
-                displayName: displayName
-            });
-        };
-        
-        notifyJoined(ipRoomId);
-        if (linkRoomId && linkRoomId !== ipRoomId) notifyJoined(linkRoomId);
+        console.log(`[DEBUG] User Registered: ${displayName} (${socket.id}) | Room: ${roomCode || 'Auto-IP'}`);
 
         // Send existing peers to the new user
         const peersMap = new Map();
@@ -85,33 +158,43 @@ io.on('connection', (socket) => {
         });
         
         const peersList = Array.from(peersMap.values());
-        console.log(`[DEBUG] Sending peer list to ${displayName}:`, peersList.map(p => p.displayName));
         socket.emit('init', { id: socket.id, peers: peersList });
+
+        // Notify others in rooms
+        const notifyJoined = (roomId) => {
+            if (!roomId) return;
+            socket.to(roomId).emit('user-joined', {
+                id: socket.id,
+                displayName: displayName
+            });
+        };
+        
+        notifyJoined(ipRoomId);
+        if (linkRoomId && linkRoomId !== ipRoomId) notifyJoined(linkRoomId);
     });
 
+    // WebRTC Signaling
     socket.on('signal', ({ target, signal }) => {
         const sender = users.get(socket.id);
         const receiver = users.get(target);
         
         if (sender && receiver) {
-            const shareRoom = sender.ipRoomId === receiver.ipRoomId || 
-                              (sender.linkRoomId && sender.linkRoomId === receiver.linkRoomId);
-            if (shareRoom) {
-                io.to(target).emit('signal', {
-                    sender: socket.id,
-                    signal: signal
-                });
-            }
+            io.to(target).emit('signal', {
+                sender: socket.id,
+                signal: signal
+            });
         }
     });
 
+    // Handshake requests
     socket.on('request-connect', ({ targetId, intent, pin }) => {
         const sender = users.get(socket.id);
         if (sender) {
             io.to(targetId).emit('incoming-request', {
                 senderId: socket.id,
                 senderName: sender.displayName,
-                pin: pin
+                pin: pin,
+                intent: intent
             });
         }
     });
@@ -126,6 +209,36 @@ io.on('connection', (socket) => {
         io.to(senderId).emit('request-declined');
     });
 
+    // Tier 2: Socket Server Relay Fallback (For when WebRTC P2P fails)
+    socket.on('relay-start', ({ targetId, metadata }) => {
+        console.log(`[SOCKET RELAY] Transmission started from ${socket.id} to ${targetId}`);
+        io.to(targetId).emit('relay-start', {
+            senderId: socket.id,
+            metadata
+        });
+    });
+
+    socket.on('relay-chunk', ({ targetId, chunk, index }) => {
+        io.to(targetId).emit('relay-chunk', {
+            senderId: socket.id,
+            chunk,
+            index
+        });
+    });
+
+    socket.on('relay-end', ({ targetId }) => {
+        console.log(`[SOCKET RELAY] Transmission finished from ${socket.id} to ${targetId}`);
+        io.to(targetId).emit('relay-end', {
+            senderId: socket.id
+        });
+    });
+
+    socket.on('relay-abort', ({ targetId }) => {
+        io.to(targetId).emit('relay-abort', {
+            senderId: socket.id
+        });
+    });
+
     socket.on('disconnect', () => {
         const user = users.get(socket.id);
         if (user) {
@@ -136,7 +249,6 @@ io.on('connection', (socket) => {
     });
 });
 
-const os = require('os');
 const PORT = process.env.PORT || 3000;
 
 function getLocalIp() {
@@ -154,11 +266,12 @@ function getLocalIp() {
 server.listen(PORT, () => {
     const localIp = getLocalIp();
     console.log(`
-    Aether Signaling Server running!
-    ---------------------------------
-    Local:   http://localhost:${PORT}
-    Network: http://${localIp}:${PORT}
-    ---------------------------------
-    (Use the Network URL on Phone B)
+    ==================================================
+    🚀 AETHER Multi-Method Signaling & Relay Server
+    --------------------------------------------------
+    Local Access:   http://localhost:${PORT}
+    Network Access: http://${localIp}:${PORT}
+    ==================================================
     `);
 });
+
