@@ -15,6 +15,17 @@ const io = new Server(server, {
     maxHttpBufferSize: 1e8 // 100 MB buffer limit for socket streams
 });
 
+// Enable CORS for all Express HTTP endpoints (Upload/Download/Health)
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 // Middleware for parsing JSON and large payloads
 app.use(express.json({ limit: '100mb' }));
 app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
