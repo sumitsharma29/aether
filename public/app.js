@@ -96,6 +96,14 @@ function initDOMElements() {
     }
 }
 
+// Smart Backend Signaling & API Server Resolution
+const RENDER_BACKEND_URL = "https://aether-innt.onrender.com";
+const isStaticHost = window.location.hostname.includes("netlify.app") || 
+                     window.location.hostname.includes("vercel.app") || 
+                     window.location.hostname.includes("github.io");
+
+const SERVER_BASE_URL = isStaticHost ? RENDER_BACKEND_URL : window.location.origin;
+
 // Safe Socket Initialization
 let socket = null;
 function initSocket() {
@@ -108,7 +116,8 @@ function initSocket() {
     if (socket) return; // Already initialized
 
     try {
-        socket = io({
+        console.log(`[AETHER] Connecting socket to backend server: ${SERVER_BASE_URL}`);
+        socket = io(SERVER_BASE_URL, {
             transports: ['websocket', 'polling'],
             reconnectionAttempts: 10
         });
@@ -464,7 +473,7 @@ function setupFileInputListeners() {
 
             try {
                 const base64Data = await fileToBase64(file);
-                const response = await fetch('/api/upload', {
+                const response = await fetch(SERVER_BASE_URL + '/api/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -476,7 +485,7 @@ function setupFileInputListeners() {
 
                 const result = await response.json();
                 if (result.success) {
-                    const fullUrl = window.location.origin + result.downloadUrl;
+                    const fullUrl = SERVER_BASE_URL + result.downloadUrl;
                     currentShareUrl = fullUrl;
 
                     const inputEl = document.getElementById('share-url-input');
