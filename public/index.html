@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AETHER | Direct P2P File Transfer</title>
+    <title>AETHER | Quantum P2P & Encrypted Cloud Vault</title>
     
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo.png">
 
     <!-- Primary Meta Tags -->
-    <meta name="title" content="AETHER | Direct P2P File Transfer">
-    <meta name="description" content="Direct browser-to-browser encrypted transfers. No servers, no logs, just speed.">
+    <meta name="title" content="AETHER | Quantum P2P & Encrypted Cloud Vault">
+    <meta name="description" content="Direct browser-to-browser encrypted transfers & persistent cloud vault. No size limits, custom expiry, AES-256 zero-knowledge.">
     
     <!-- Tailwind & Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,77 +19,42 @@
     
     <style>
         :root {
-            --primary: 199 89% 48%;
-            --secondary: 263 85% 65%;
-            --accent: 180 100% 50%;
+            --primary: 190 90% 50%;
+            --secondary: 260 85% 65%;
             --bg: 240 10% 4%;
         }
         
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: hsl(var(--bg));
+            background-color: #07090e;
             color: #f8fafc;
             overflow-x: hidden;
         }
 
-        #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.6; }
-        .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 10%, hsla(var(--primary), 0.15) 0, transparent 40%), radial-gradient(circle at 90% 90%, hsla(var(--secondary), 0.15) 0, transparent 40%); filter: blur(80px); }
+        #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.5; }
+        .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.15) 0, transparent 40%), radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.15) 0, transparent 40%); filter: blur(80px); }
 
-        .glass { background: rgba(10, 10, 20, 0.4); backdrop-filter: blur(30px) saturate(200%); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
-        .glass-bordered { border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass { background: rgba(12, 17, 29, 0.5); backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card { background: rgba(15, 22, 38, 0.6); backdrop-filter: blur(30px); border: 1px solid rgba(34, 211, 238, 0.15); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
 
-        .btn-aether { background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary))); transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); position: relative; overflow: hidden; box-shadow: 0 10px 30px -10px hsla(var(--primary), 0.6); }
-        .btn-aether:hover { transform: translateY(-4px) scale(1.05); box-shadow: 0 20px 40px -10px hsla(var(--primary), 0.8); filter: brightness(1.2); }
+        .btn-aether { background: linear-gradient(135deg, #06b6d4, #6366f1); transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); position: relative; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.6); }
+        .btn-aether:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.8); filter: brightness(1.2); }
 
-        .text-gradient { background: linear-gradient(to right, #60efff, #ff60f9); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .text-gradient { background: linear-gradient(to right, #60efff, #a855f7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
-        .reveal { opacity: 0; transform: translateY(30px); transition: all 1s cubic-bezier(0.22, 1, 0.36, 1); }
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
         .reveal.active { opacity: 1; transform: translateY(0); }
 
-        /* Magnetic Mouse Glow */
         #mouse-glow {
             position: fixed;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, hsla(var(--primary), 0.15) 0%, transparent 70%);
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
             border-radius: 50%;
             pointer-events: none;
             z-index: -1;
             transform: translate(-50%, -50%);
-            transition: width 0.3s, height 0.3s;
             filter: blur(50px);
-        }
-
-        /* 3D Tilt Effect */
-        .tilt-card {
-            transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-            transform-style: preserve-3d;
-        }
-        .tilt-card:hover {
-            transform: perspective(1000px) rotateX(2deg) rotateY(2deg);
-        }
-
-        .faq-item { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: rgba(255, 255, 255, 0.02); }
-        .faq-item:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(6, 182, 212, 0.3); }
-        .faq-answer { max-height: 0; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; }
-        .faq-item.active .faq-answer { max-height: 300px; opacity: 1; padding-top: 1.5rem; }
-        .faq-item.active .faq-icon { transform: rotate(180deg); color: hsl(var(--primary)); }
-
-        /* Professional Signature Refinement */
-        .signature-glow {
-            background: linear-gradient(90deg, #fff, #60efff, #fff);
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: glow-move 6s linear infinite;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.4em;
-        }
-        @keyframes glow-move {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 300% 50%; }
         }
     </style>
 </head>
@@ -98,275 +63,127 @@
     <canvas id="particle-canvas"></canvas>
     <div class="mesh-bg"></div>
 
-    <!-- Drag Overlay -->
-    <div id="drag-overlay" class="fixed inset-0 z-[150] bg-cyan-500/10 backdrop-blur-md hidden flex-col items-center justify-center border-[8px] border-dashed border-cyan-400/30 m-8 rounded-[4rem] pointer-events-none transition-all duration-300">
-        <div class="w-32 h-32 bg-cyan-500 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.5)] animate-bounce">
-            <svg class="w-16 h-16 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-        </div>
-        <p class="mt-8 text-2xl font-black text-white uppercase tracking-[0.5em] italic">Drop to Stream</p>
-    </div>
-
     <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 px-8 py-10 flex justify-between items-center transition-all duration-500" id="main-nav">
-        <div class="flex items-center gap-6 group cursor-pointer">
-            <img src="logo.png" alt="AETHER" class="w-14 h-14 object-contain group-hover:scale-110 transition-transform duration-500">
+    <nav class="fixed top-0 w-full z-50 px-8 md:px-14 py-6 flex justify-between items-center glass border-b border-white/5" id="main-nav">
+        <div class="flex items-center gap-4 group cursor-pointer" onclick="location.href='/'">
+            <img src="logo.png" alt="AETHER" class="w-11 h-11 object-contain group-hover:scale-105 transition-transform">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter text-white leading-none">AETHER</h1>
-                <p class="text-[9px] uppercase tracking-[0.4em] font-black text-cyan-400 opacity-60">Neural Network Layer</p>
+                <h1 class="text-2xl font-black tracking-tighter text-white leading-none">AETHER</h1>
+                <p class="text-[8px] uppercase tracking-[0.3em] font-black text-cyan-400 opacity-80">Quantum Sharing System</p>
             </div>
         </div>
-        <a href="/void" class="glass glass-bordered px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all">Launch App</a>
+        <a href="/void" class="btn-aether px-7 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-black no-underline">
+            Launch App
+        </a>
     </nav>
 
     <!-- Hero -->
-    <main class="min-h-screen flex flex-col items-center justify-center pt-20 px-6">
-        <div class="text-center max-w-5xl">
-            <div class="mb-12 relative inline-block reveal active">
-                <img src="logo.png" alt="AETHER" class="w-32 h-32 mx-auto animate-pulse">
+    <main class="min-h-screen flex flex-col items-center justify-center pt-28 px-6 text-center">
+        <div class="max-w-5xl">
+            <div class="mb-8 relative inline-block reveal active">
+                <img src="logo.png" alt="AETHER" class="w-24 h-24 md:w-32 md:h-32 mx-auto animate-pulse">
             </div>
-            <h2 class="text-6xl md:text-9xl font-black tracking-tighter mb-10 leading-tight reveal active">
+
+            <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full glass border border-cyan-500/30 text-cyan-300 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] mb-6">
+                ⚡ Direct WebRTC P2P + ☁️ Encrypted Cloud Vault
+            </div>
+
+            <h2 class="text-5xl md:text-8xl font-black tracking-tighter mb-8 leading-tight reveal active">
                 Beyond <span class="text-gradient">Sharing.</span>
             </h2>
-            <p class="text-xl md:text-2xl text-slate-400 font-medium mb-16 max-w-2xl mx-auto leading-relaxed reveal active">
-                Direct browser-to-browser tunnels. Zero servers, zero trust, infinite speed. <span class="block mt-4 text-cyan-500/80 italic font-normal">Your hardware is the only limit to your data's velocity.</span>
+
+            <p class="text-lg md:text-2xl text-slate-400 font-medium mb-12 max-w-3xl mx-auto leading-relaxed reveal active">
+                The world's fastest file transmission engine. Direct zero-RAM device-to-device streaming, or store in the <span class="text-cyan-300 font-bold">Encrypted Cloud Vault</span> so you can close your browser while recipients download at hardware speed.
             </p>
-            <div class="reveal active">
-                <a href="/void" class="btn-aether inline-block px-16 py-6 rounded-[2.5rem] text-xl font-black tracking-tight text-white no-underline">
-                    Enter the Void
+
+            <div class="flex flex-col sm:flex-row gap-5 justify-center items-center reveal active">
+                <a href="/void" class="btn-aether px-12 py-5 rounded-[2rem] text-lg font-black tracking-tight text-black no-underline shadow-2xl">
+                    Enter the Void 🚀
                 </a>
             </div>
         </div>
     </main>
 
-    <!-- Features -->
-    <section class="py-40 px-8 max-w-7xl mx-auto space-y-60">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-20 items-center reveal">
-            <div class="order-2 md:order-1">
-                <span class="text-cyan-400 font-black tracking-widest uppercase text-[10px] mb-6 block">Ultra Secure</span>
-                <h3 class="text-5xl font-black tracking-tighter mb-8 italic">Zero-Knowledge Transmission.</h3>
-                <p class="text-slate-400 text-lg leading-relaxed mb-10">Files never touch our servers. Aether orchestrates a direct DTLS-SRTP encrypted tunnel between devices. <span class="text-white/60">Real-time ephemeral keys ensure your link remains unhackable and invisible to the outside world.</span></p>
-                <ul class="space-y-4">
-                    <li class="flex items-center gap-3 text-sm font-bold text-white"><svg class="w-5 h-5 text-cyan-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg> 256-bit AES Encryption</li>
-                </ul>
-            </div>
-            <div class="order-1 md:order-2 tilt-card">
-                <img src="security.png" alt="Security" class="w-full rounded-[4rem] shadow-2xl shadow-cyan-500/20">
-            </div>
+    <!-- Core Features Grid -->
+    <section class="py-24 px-8 max-w-7xl mx-auto">
+        <div class="text-center mb-16">
+            <span class="text-cyan-400 font-black tracking-[0.3em] uppercase text-xs">Architectural Supremacy</span>
+            <h3 class="text-4xl md:text-5xl font-black tracking-tighter mt-2 text-white">Engineered For Zero Limits</h3>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-20 items-center reveal">
-            <div class="tilt-card">
-                <img src="speed.png" alt="Speed" class="w-full rounded-[4rem] shadow-2xl shadow-purple-500/20">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Card 1 -->
+            <div class="glass-card p-10 rounded-[3rem] text-left border border-cyan-500/20 hover:border-cyan-400 transition-all">
+                <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-6 border border-cyan-500/20">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <h4 class="text-2xl font-black text-white mb-3">Direct P2P Turbo</h4>
+                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                    Browser-to-browser WebRTC DTLS data pipes with zero-RAM flow control. No file size ceiling — stream multi-gigabyte files directly at hardware line speed.
+                </p>
+                <span class="text-xs font-bold text-cyan-400">⚡ Up to 100+ MB/s</span>
             </div>
-            <div>
-                <span class="text-purple-400 font-black tracking-widest uppercase text-[10px] mb-6 block">Line Speed</span>
-                <h3 class="text-5xl font-black tracking-tighter mb-8 italic">Quantum Connectivity.</h3>
-                <p class="text-slate-400 text-lg leading-relaxed mb-10">Utilizing full local bandwidth. No upload limits, no cloud throttling. <span class="text-white/60">Bypass the public internet entirely to synchronize multi-terabyte datasets at the speed of your internal hardware.</span></p>
-            </div>
-        </div>
-    </section>
 
-    <!-- Use Cases -->
-    <section class="py-40 px-8 bg-cyan-900/5">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-24 reveal">
-                <span class="text-cyan-400 font-black tracking-widest uppercase text-[10px] mb-6 block italic">Universal Application</span>
-                <h3 class="text-5xl font-black tracking-tighter italic">Designed for <span class="text-gradient">Every Edge.</span></h3>
+            <!-- Card 2 -->
+            <div class="glass-card p-10 rounded-[3rem] text-left border border-purple-500/20 hover:border-purple-400 transition-all">
+                <div class="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-6 border border-purple-500/20">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                </div>
+                <h4 class="text-2xl font-black text-white mb-3">Persistent Cloud Vault</h4>
+                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                    Close your laptop or website once uploaded. Customize link validity from 1 Hour to 7 Days or burn on download. Recipient downloads anytime.
+                </p>
+                <span class="text-xs font-bold text-purple-400">☁️ Offline Sharing Ready</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 reveal">
-                <div class="glass glass-bordered p-10 rounded-[3rem] border-white/5 hover:bg-white/5 transition-all">
-                    <div class="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-8"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></div>
-                    <h5 class="text-xl font-black mb-4">Content Creators</h5>
-                    <p class="text-slate-500 text-sm leading-relaxed">Stream raw 8K footage between editing bays without the 24-hour cloud upload wait.</p>
-                </div>
-                <div class="glass glass-bordered p-10 rounded-[3rem] border-white/5 hover:bg-white/5 transition-all">
-                    <div class="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-400 mb-8"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg></div>
-                    <h5 class="text-xl font-black mb-4">Developers</h5>
-                    <p class="text-slate-500 text-sm leading-relaxed">Sync massive build artifacts and Docker images across local environments instantly.</p>
-                </div>
-                <div class="glass glass-bordered p-10 rounded-[3rem] border-white/5 hover:bg-white/5 transition-all">
-                    <div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 mb-8"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></div>
-                    <h5 class="text-xl font-black mb-4">Privacy Advocates</h5>
-                    <p class="text-slate-500 text-sm leading-relaxed">Transfer sensitive documents without leaving a digital footprint on any third-party server.</p>
-                </div>
-                <div class="glass glass-bordered p-10 rounded-[3rem] border-white/5 hover:bg-white/5 transition-all">
-                    <div class="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-400 mb-8"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg></div>
-                    <h5 class="text-xl font-black mb-4">Remote Teams</h5>
-                    <p class="text-slate-500 text-sm leading-relaxed">The ultimate companion for high-security office local networks and home-office setups.</p>
-                </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Steps -->
-    <section class="py-40 px-8 max-w-7xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-16 reveal">
-            <div class="p-8 border-l-2 border-cyan-500/20 hover:border-cyan-500 transition-colors group">
-                <h4 class="text-xs font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Paradigm 01</h4>
-                <h5 class="text-2xl font-black mb-6 italic">Absolute Privacy.</h5>
-                <p class="text-slate-400 text-sm leading-relaxed">No intermediary servers. Your files are encrypted before transit and stream directly to the target node. Zero data remains in the ether.</p>
-            </div>
-            <div class="p-8 border-l-2 border-purple-500/20 hover:border-purple-500 transition-colors group">
-                <h4 class="text-xs font-black uppercase tracking-[0.4em] text-purple-400 mb-4">Paradigm 02</h4>
-                <h5 class="text-2xl font-black mb-6 italic">Infinite Volume.</h5>
-                <p class="text-slate-400 text-sm leading-relaxed">No 2GB limits. No upload caps. If your hardware can handle it, Aether will stream it. Perfect for 4K video and large datasets.</p>
-            </div>
-            <div class="p-8 border-l-2 border-cyan-400/20 hover:border-cyan-400 transition-colors group">
-                <h4 class="text-xs font-black uppercase tracking-[0.4em] text-cyan-400 mb-4">Paradigm 03</h4>
-                <h5 class="text-2xl font-black mb-6 italic">Zero Friction.</h5>
-                <p class="text-slate-400 text-sm leading-relaxed">No accounts. No emails. No "Sign in with Google." Just open the link, enter the PIN, and begin the synchronization.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Architecture Section -->
-    <section class="py-60 px-8 bg-gradient-to-b from-transparent to-cyan-900/5">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-20 items-center">
-            <div class="w-full md:w-1/2 reveal">
-                <h3 class="text-5xl font-black tracking-tighter mb-10 italic">The Architecture <span class="text-gradient">Layer.</span></h3>
-                <div class="space-y-6">
-                    <div class="glass glass-bordered p-6 rounded-2xl border-white/5">
-                        <code class="text-[10px] text-cyan-400 font-mono tracking-tighter uppercase">PROTOCOL: WebRTC DataChannel (DTLS-SRTP)</code>
-                    </div>
-                    <div class="glass glass-bordered p-6 rounded-2xl border-white/5">
-                        <code class="text-[10px] text-purple-400 font-mono tracking-tighter uppercase">ENCRYPTION: 256-bit AES GCM</code>
-                    </div>
-                    <div class="glass glass-bordered p-6 rounded-2xl border-white/5">
-                        <code class="text-[10px] text-slate-400 font-mono tracking-tighter uppercase">TOPOLOGY: Local Subnet Discovery</code>
-                    </div>
+            <!-- Card 3 -->
+            <div class="glass-card p-10 rounded-[3rem] text-left border border-indigo-500/20 hover:border-indigo-400 transition-all">
+                <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 </div>
-            </div>
-            <div class="w-full md:w-1/2 reveal">
-                <p class="text-slate-400 text-xl leading-relaxed italic border-l-4 border-cyan-500/20 pl-8">"Aether is built on the philosophy of decentralized data. By leveraging browser-native WebRTC technology, we eliminate the need for a central repository, making your data transfers faster, safer, and completely private."</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Steps Flow -->
-    <section class="py-40 px-8 max-w-5xl mx-auto">
-        <div class="text-center mb-20 reveal">
-            <h3 class="text-4xl font-black tracking-tighter italic mb-4 text-white">Three Steps to <span class="text-gradient">Zero-Gravity.</span></h3>
-        </div>
-        <div class="space-y-12 relative reveal">
-            <div class="absolute left-[26px] top-10 bottom-10 w-[2px] bg-gradient-to-b from-cyan-500 via-purple-500 to-transparent opacity-20 hidden md:block"></div>
-            
-            <div class="flex items-start gap-10 group">
-                <div class="w-14 h-14 rounded-2xl bg-cyan-500 flex items-center justify-center text-black font-black text-xl shrink-0 z-10 shadow-[0_0_30px_rgba(6,182,212,0.5)]">01</div>
-                <div class="pt-2">
-                    <h6 class="text-2xl font-black mb-3 text-white italic">Initialize the Bridge</h6>
-                    <p class="text-slate-500 leading-relaxed">Launch the Aether app on both devices. Our neural layer will automatically detect all nodes on your local subnet.</p>
-                </div>
-            </div>
-            
-            <div class="flex items-start gap-10 group">
-                <div class="w-14 h-14 rounded-2xl bg-purple-500 flex items-center justify-center text-black font-black text-xl shrink-0 z-10 shadow-[0_0_30px_rgba(168,85,247,0.5)]">02</div>
-                <div class="pt-2">
-                    <h6 class="text-2xl font-black mb-3 text-white italic">Handshake Security</h6>
-                    <p class="text-slate-500 leading-relaxed">Enter the 4-digit neural key. This establishes a secondary out-of-band verification to lock the encrypted tunnel.</p>
-                </div>
-            </div>
-            
-            <div class="flex items-start gap-10 group">
-                <div class="w-14 h-14 rounded-2xl bg-indigo-500 flex items-center justify-center text-black font-black text-xl shrink-0 z-10 shadow-[0_0_30px_rgba(99,102,241,0.5)]">03</div>
-                <div class="pt-2">
-                    <h6 class="text-2xl font-black mb-3 text-white italic">Begin Stream</h6>
-                    <p class="text-slate-500 leading-relaxed">Drag your data into the void. Watch the bit-stream synchronize in real-time at maximum hardware speed.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="py-40 px-8 bg-black/40 border-y border-white/5">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-center mb-20 reveal">
-                <h3 class="text-4xl font-black tracking-tighter mb-4 italic">Common Queries</h3>
-            </div>
-            <div class="space-y-4">
-                <div class="faq-item glass glass-bordered p-8 rounded-[2rem] cursor-pointer reveal" onclick="this.classList.toggle('active')">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-lg">Does it work across different OS?</h4>
-                        <svg class="w-6 h-6 faq-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="faq-answer text-slate-300 leading-relaxed text-sm">
-                        Yes. Aether is browser-native. You can share files between an iPhone, an Android tablet, a Windows PC, and a Mac—as long as they are on the same Wi-Fi network.
-                    </div>
-                </div>
-                <div class="faq-item glass glass-bordered p-8 rounded-[2rem] cursor-pointer reveal" onclick="this.classList.toggle('active')">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-lg">Is there any data logging?</h4>
-                        <svg class="w-6 h-6 faq-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="faq-answer text-slate-300 leading-relaxed text-sm">
-                        Zero. Since the connection is P2P (Peer-to-Peer), your files move directly between devices. Our signaling server only helps the devices "find" each other—it never sees or stores your data.
-                    </div>
-                </div>
-                <div class="faq-item glass glass-bordered p-8 rounded-[2rem] cursor-pointer reveal" onclick="this.classList.toggle('active')">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-lg">What if the network is public?</h4>
-                        <svg class="w-6 h-6 faq-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="faq-answer text-slate-300 leading-relaxed text-sm">
-                        Aether is designed for security. The PIN-based handshake ensures that even on a public Wi-Fi, only the person you authorize can establish a link and receive your stream.
-                    </div>
-                </div>
-                <div class="faq-item glass glass-bordered p-8 rounded-[2rem] cursor-pointer reveal" onclick="this.classList.toggle('active')">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-lg">Do I need high-speed internet?</h4>
-                        <svg class="w-6 h-6 faq-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="faq-answer text-slate-300 leading-relaxed text-sm">
-                        No. Aether uses your local network (Wi-Fi or LAN) bandwidth. The transfer speed depends on your router's speed, not your ISP's internet plan.
-                    </div>
-                </div>
+                <h4 class="text-2xl font-black text-white mb-3">AES-256 E2EE Encryption</h4>
+                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                    Client-side Web Crypto PBKDF2/AES-GCM encryption. The server and third parties only see ciphertext. Keys are never transmitted in plaintext.
+                </p>
+                <span class="text-xs font-bold text-indigo-400">🔒 Military-Grade Security</span>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="py-20 px-8 border-t border-white/5 text-center">
-        <div class="flex flex-col items-center gap-6 mb-16 reveal">
-            <p class="text-[10px] font-black uppercase tracking-[0.6em] text-white/40 mb-2">Developed by</p>
-            <a href="https://www.linkedin.com/in/sumit-sharma-78b93b294" target="_blank" class="signature-glow text-xl md:text-2xl no-underline hover:tracking-[0.6em] transition-all duration-700 block">
-                Sumit Sharma
-            </a>
-            <div class="w-12 h-[2px] bg-cyan-500/50"></div>
-            <p class="text-[10px] font-black tracking-[0.6em] text-cyan-400 uppercase">Lead Architect</p>
-        </div>
-        <p class="text-[10px] font-bold text-white/30 tracking-[0.5em] uppercase">&copy; 2026 AETHER NETWORK. PURE LOCAL TUNNELING.</p>
+    <footer class="py-12 px-8 text-center text-slate-500 text-xs font-bold uppercase tracking-widest border-t border-white/5 mt-auto">
+        <p>AETHER Quantum Transfer Engine • Built for Infinite Velocity</p>
     </footer>
 
+    <!-- Interactive Mouse Particles -->
     <script>
         const canvas = document.getElementById('particle-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
         let mouse = { x: null, y: null, radius: 150 };
-        window.addEventListener('mousemove', (e) => { 
-            mouse.x = e.x; 
-            mouse.y = e.y; 
-            
-            // Mouse Glow logic
-            const glow = document.getElementById('mouse-glow');
-            glow.style.left = e.clientX + 'px';
-            glow.style.top = e.clientY + 'px';
+
+        const glow = document.getElementById('mouse-glow');
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x; mouse.y = e.y;
+            if (glow) { glow.style.left = `${e.clientX}px`; glow.style.top = `${e.clientY}px`; }
         });
+
         function initParticles() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             particles = [];
-            for (let i = 0; i < 70; i++) {
-                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, size: Math.random() * 2 + 1, density: (Math.random() * 30) + 1 });
+            for (let i = 0; i < 50; i++) {
+                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, size: Math.random() * 2 + 1, density: (Math.random() * 20) + 1 });
             }
         }
         function drawParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(6, 182, 212, 0.4)'; ctx.strokeStyle = 'rgba(6, 182, 212, 0.08)';
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.4)'; ctx.strokeStyle = 'rgba(6, 182, 212, 0.05)';
             particles.forEach((p, i) => {
                 if (mouse.x != null) {
-                    let dx = mouse.x - p.x; let dy = mouse.y - p.y; let distance = Math.sqrt(dx*dx + dy*dy);
+                    let dx = mouse.x - p.x; let dy = mouse.y - p.y; let distance = Math.hypot(dx, dy);
                     if (distance < mouse.radius) {
-                        const forceDirectionX = dx / distance; const forceDirectionY = dy / distance;
                         const force = (mouse.radius - distance) / mouse.radius;
-                        p.x -= forceDirectionX * force * p.density; p.y -= forceDirectionY * force * p.density;
+                        p.x -= (dx / distance) * force * p.density; p.y -= (dy / distance) * force * p.density;
                     }
                 }
                 p.x += p.vx; p.y += p.vy;
@@ -375,17 +192,12 @@
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
                 for (let j = i + 1; j < particles.length; j++) {
                     const p2 = particles[j]; const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-                    if (dist < 180) { ctx.lineWidth = 1.2 - dist / 180; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+                    if (dist < 150) { ctx.lineWidth = 1 - dist / 150; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
                 }
             });
             requestAnimationFrame(drawParticles);
         }
         window.addEventListener('resize', initParticles); initParticles(); drawParticles();
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('active'); });
-        }, { threshold: 0.1 });
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     </script>
 </body>
 </html>
