@@ -25,9 +25,7 @@
             --bg: 230, 35%, 5%;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -79,12 +77,12 @@
         #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.45; }
         .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 15% 20%, rgba(6, 182, 212, 0.12) 0, transparent 40%), radial-gradient(circle at 85% 80%, rgba(99, 102, 241, 0.12) 0, transparent 40%); filter: blur(70px); }
 
-        .radar-ring { position: absolute; border: 1px solid rgba(6, 182, 212, 0.14); border-radius: 50%; pointer-events: none; }
-        .radar-line { position: absolute; top: 50%; left: 50%; width: 50%; height: 3px; background: linear-gradient(to right, rgba(6, 182, 212, 0.8), rgba(99, 102, 241, 0.3), transparent); transform-origin: left center; filter: blur(2px); animation: rotate 8s linear infinite; }
+        .radar-ring { position: absolute; border: 1px solid rgba(6, 182, 212, 0.15); border-radius: 50%; pointer-events: none; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .radar-line { position: absolute; top: 50%; left: 50%; width: 50%; height: 3px; background: linear-gradient(to right, rgba(6, 182, 212, 0.8), rgba(99, 102, 241, 0.3), transparent); transform-origin: left center; filter: blur(2px); animation: rotate 7s linear infinite; }
 
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .float { animation: float 6s ease-in-out infinite; }
-        @keyframes float { 0%, 100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(-14px); } }
+        @keyframes float { 0%, 100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(-12px); } }
 
         .btn-aether { background: linear-gradient(135deg, #06b6d4, #6366f1); transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1); box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.6); }
         .btn-aether:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.8); filter: brightness(1.15); }
@@ -93,7 +91,6 @@
 
         .tab-btn { transition: all 0.25s ease-in-out; }
 
-        /* Custom scrollbar for modals & history */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
         ::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.3); border-radius: 4px; }
@@ -113,10 +110,10 @@
         <p class="mt-6 text-xl md:text-2xl font-black text-white uppercase tracking-[0.4em] italic">Drop File to Stream</p>
     </div>
 
-    <!-- Sticky / Fixed Header Navigation -->
-    <header class="sticky top-0 left-0 w-full px-4 sm:px-8 py-4 flex justify-between items-center z-50 glass border-b border-white/5">
+    <!-- Header Navigation -->
+    <header class="sticky top-0 left-0 w-full px-4 sm:px-8 py-3.5 flex justify-between items-center z-50 glass border-b border-white/5">
         <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
-            <img src="logo.png" alt="AETHER" class="w-9 h-9 sm:w-11 sm:h-11 object-contain hover:scale-105 transition-transform">
+            <img src="logo.png" alt="AETHER" class="w-9 h-9 sm:w-10 sm:h-10 object-contain hover:scale-105 transition-transform">
             <div>
                 <h1 class="text-xl sm:text-2xl font-black tracking-tighter text-white leading-none">AETHER</h1>
                 <p class="text-[8px] uppercase tracking-[0.3em] font-black text-cyan-400 opacity-80">Quantum Vault Layer</p>
@@ -155,23 +152,24 @@
     </header>
 
     <!-- Main Dynamic Space -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 w-full max-w-5xl mx-auto my-auto">
+    <main class="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 w-full max-w-5xl mx-auto my-auto">
         
         <!-- VIEW 1: DIRECT P2P RADAR VIEW -->
         <div id="p2p-radar-view" class="flex flex-col items-center justify-center w-full">
-            <div class="radar-container relative w-full max-w-[340px] sm:max-w-[420px] md:max-w-[480px] aspect-square flex items-center justify-center my-2">
-                <div class="radar-ring w-full h-full opacity-15"></div>
-                <div class="radar-ring w-[80%] h-[80%] opacity-25"></div>
-                <div class="radar-ring w-[60%] h-[60%] opacity-35"></div>
-                <div class="radar-ring w-[40%] h-[40%] opacity-45"></div>
+            <div class="radar-container relative w-full max-w-[340px] sm:max-w-[420px] md:max-w-[460px] aspect-square my-1">
+                <!-- Concentric Rings centered -->
+                <div class="radar-ring w-[100%] h-[100%]"></div>
+                <div class="radar-ring w-[80%] h-[80%]"></div>
+                <div class="radar-ring w-[60%] h-[60%]"></div>
+                <div class="radar-ring w-[40%] h-[40%]"></div>
                 <div class="radar-line"></div>
                 
-                <!-- Primary Node (You) -->
-                <div class="z-20 relative group">
-                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center shadow-[0_0_60px_rgba(6,182,212,0.4)] border-2 border-white/30 transform rotate-3 group-hover:rotate-0 transition-all duration-500 cursor-pointer">
-                        <img src="logo.png" alt="You" class="w-12 h-12 sm:w-14 sm:h-14 opacity-95">
+                <!-- Dead-Centered Primary Node (You) -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 group">
+                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center shadow-[0_0_60px_rgba(6,182,212,0.5)] border-2 border-white/30 transition-all duration-300 cursor-pointer hover:scale-105">
+                        <img src="logo.png" alt="AETHER Logo" class="w-12 h-12 sm:w-14 sm:h-14 object-contain">
                     </div>
-                    <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 glass px-3.5 py-1 rounded-xl text-[9px] font-black tracking-[0.2em] text-cyan-300 uppercase whitespace-nowrap shadow-2xl border-cyan-500/30">
+                    <div class="absolute -bottom-9 left-1/2 -translate-x-1/2 glass px-3.5 py-1 rounded-xl text-[9px] font-black tracking-[0.2em] text-cyan-300 uppercase whitespace-nowrap shadow-2xl border-cyan-500/30">
                         <span id="my-display-name">Primary Node</span>
                     </div>
                 </div>
@@ -180,8 +178,8 @@
             </div>
 
             <!-- Bottom Radar Action Bar -->
-            <div class="mt-8 text-center space-y-3">
-                <p id="empty-state" class="text-cyan-400 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
+            <div class="mt-6 text-center space-y-3">
+                <p id="empty-state" class="text-cyan-400 font-black uppercase tracking-[0.25em] text-[10px] animate-pulse">
                     Scanning ether waves for nearby peers...
                 </p>
                 <div class="flex flex-wrap gap-2.5 justify-center items-center">
@@ -369,64 +367,6 @@
             <button id="btn-cancel-transfer" class="text-rose-500 hover:text-rose-400 font-black text-[9px] uppercase tracking-[0.25em] transition-all underline underline-offset-8">
                 Abort Transmission
             </button>
-        </div>
-    </div>
-
-    <!-- P2P PEER SELECTION MODAL -->
-    <div id="modal-selection" class="fixed inset-0 bg-slate-950/80 backdrop-blur-2xl z-[100] hidden flex items-center justify-center p-4">
-        <div class="glass-card p-8 sm:p-10 rounded-[3rem] max-w-sm w-full text-center">
-            <h3 class="text-2xl font-black mb-1 tracking-tighter italic text-white">Target Synced</h3>
-            <p id="selected-peer-name" class="text-cyan-400 font-black mb-8 tracking-[0.25em] uppercase text-[9px]">Node Ready</p>
-            <div class="grid grid-cols-2 gap-3.5">
-                <button onclick="handleSelection('send')" class="p-6 rounded-[2rem] bg-cyan-500/10 hover:bg-cyan-500 hover:text-black transition-all group border border-cyan-500/20">
-                    <svg class="w-7 h-7 mx-auto mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    <span class="font-black text-[9px] uppercase tracking-widest">Transmit</span>
-                </button>
-                <button onclick="handleSelection('receive')" class="p-6 rounded-[2rem] bg-slate-900/60 hover:bg-slate-800 transition-all group border border-slate-700">
-                    <svg class="w-7 h-7 mx-auto mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l4 4m-4-4h12"></path></svg>
-                    <span class="font-black text-[9px] uppercase tracking-widest">Receive</span>
-                </button>
-            </div>
-            <button onclick="closeModals()" class="mt-6 text-slate-500 hover:text-white font-black text-[9px] uppercase tracking-widest transition-colors">Dismiss</button>
-        </div>
-    </div>
-
-    <!-- P2P PIN DISPLAY -->
-    <div id="modal-pin-display" class="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-[100] hidden flex items-center justify-center p-4">
-        <div class="glass-card p-8 sm:p-10 rounded-[3rem] max-w-sm w-full text-center">
-            <h3 class="text-2xl font-black mb-1 italic text-white">Security Proof</h3>
-            <p class="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mb-6">Confirm Handshake Key</p>
-            <div id="caller-pin" class="text-6xl font-mono font-black tracking-[0.1em] text-white bg-slate-900/80 py-6 rounded-2xl border border-cyan-500/20 mb-6 shadow-inner italic">0000</div>
-            <button onclick="cancelRequest()" class="text-rose-500 hover:text-rose-400 font-black text-[9px] uppercase tracking-[0.25em] transition-all underline underline-offset-8">Abort</button>
-        </div>
-    </div>
-
-    <!-- P2P INCOMING REQUEST -->
-    <div id="modal-incoming" class="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-[100] hidden flex items-center justify-center p-4">
-        <div class="glass-card p-8 sm:p-10 rounded-[3rem] max-w-sm w-full text-center">
-            <h3 class="text-2xl font-black mb-1 italic text-white">Stream Incoming</h3>
-            <p id="incoming-msg" class="text-cyan-400 font-black mb-5 tracking-[0.25em] uppercase text-[9px]">Peer Requesting Link</p>
-            <div id="receiver-pin" class="text-6xl font-mono font-black tracking-[0.1em] text-white mb-6 italic">0000</div>
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="acceptRequest()" class="py-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 font-black text-xs uppercase tracking-widest text-black transition-all shadow-xl">Accept</button>
-                <button onclick="declineRequest()" class="py-4 rounded-xl bg-slate-900 hover:bg-slate-800 font-black text-xs uppercase tracking-widest transition-all border border-slate-700">Decline</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- P2P READY MODAL -->
-    <div id="modal-ready" class="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-[100] hidden flex items-center justify-center p-4">
-        <div class="glass-card p-8 sm:p-10 rounded-[3rem] max-w-sm w-full text-center">
-            <div class="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-green-400 border border-green-500/30">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
-            </div>
-            <h3 class="text-2xl font-black mb-1 italic text-white">Tunnel Ready</h3>
-            <p class="text-slate-400 text-xs font-bold mb-6">P2P connection locked. Select file to stream.</p>
-            <button id="btn-select-file" class="btn-aether w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.25em] text-black shadow-2xl mb-3 flex items-center justify-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                Choose File
-            </button>
-            <button onclick="closeModals()" class="text-slate-500 hover:text-white font-black text-[9px] uppercase tracking-widest transition-colors">Dismiss</button>
         </div>
     </div>
 
