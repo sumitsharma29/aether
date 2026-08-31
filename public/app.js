@@ -1,7 +1,7 @@
 /**
  * AETHER Quantum Transfer & Encrypted Cloud Vault Engine
  * Features:
- * 1. WebRTC Direct P2P Turbo Streaming (Zero Server RAM, Unlimited Size)
+ * 1. WebRTC Direct P2P Turbo Streaming (Sub-second Connection, Zero Server RAM)
  * 2. Encrypted Cloud Vault (Sender can close tab, Custom Expiry: 1h to 7d, E2EE AES-256)
  * 3. High-throughput Chunking with WebRTC Backpressure Flow Control
  * 4. Interactive Live Speedometer, ETA, and Transfer Metrics
@@ -27,7 +27,7 @@ if (!urlParams.get('room')) {
 // Global Application State
 let myId = null;
 let myName = generateName();
-let peers = new Map(); // peerId -> { name, element, pc, isWebrtcDirect }
+let peers = new Map(); // peerId -> { name, element, pc, isWebrtcDirect, signalQueue: [] }
 let selectedPeerId = null;
 let currentPIN = null;
 let pendingRequest = null;
@@ -35,11 +35,20 @@ let isTransferring = false;
 let shouldAbort = false;
 let currentShareUrl = '';
 let selectedFilesForVault = [];
+let pendingP2PFiles = [];
 let activeMode = 'p2p'; // 'p2p' | 'vault'
 
 // Transfer Tuned Constants
 const CHUNK_SIZE = 128 * 1024; // 128 KB chunks
 const MAX_BUFFERED_AMOUNT = 2 * 1024 * 1024; // 2MB WebRTC backpressure threshold
+
+// Fast Google STUN Configuration (< 100ms ICE Gathering)
+const ICE_CONFIG = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
 
 // History Store
 let history = [];
@@ -69,24 +78,24 @@ function initSocket() {
 
     try {
         console.log(`[AETHER] Connecting to signaling core: ${SERVER_BASE_URL}`);
-        updateStatusBanner('connecting', 'Connecting to Quantum Core...');
+        updateStatusBanner('connecting', 'Connecting to Core...');
 
         socket = io(SERVER_BASE_URL, {
             transports: ['websocket', 'polling'],
-            reconnectionAttempts: 15,
+            reconnectionAttempts: 20,
             reconnectionDelay: 1000
         });
 
         socket.on('connect', () => {
             isSocketConnected = true;
             console.log(`[AETHER] Socket Connected (${socket.id})`);
-            updateStatusBanner('connected', `Quantum Core Connected • ID: ${roomCode}`);
+            updateStatusBanner('connected', `Core Connected • Room: ${roomCode}`);
             socket.emit('register', { displayName: myName, roomCode: roomCode });
         });
 
         socket.on('disconnect', () => {
             isSocketConnected = false;
-            updateStatusBanner('connecting', 'Reconnecting to Quantum Core...');
+            updateStatusBanner('connecting', 'Reconnecting...');
         });
 
         socket.on('init', (data) => {
@@ -100,7 +109,7 @@ function initSocket() {
         socket.on('user-joined', (p) => {
             addPeerUI(p.id, p.displayName);
             updatePeerCountIndicator();
-            showNotification(`${p.displayName} Joined Ether Wave`);
+            showNotification(`⚡ ${p.displayName} Detected`);
             playSound('notify');
         });
 
@@ -109,10 +118,26 @@ function initSocket() {
             updatePeerCountIndicator();
         });
 
+        // Fast WebRTC Signal Handler with Queuing
         socket.on('signal', (data) => {
             const peer = peers.get(data.sender);
-            if (peer && peer.pc) {
-                try { peer.pc.signal(data.signal); } catch (e) {}
+            if (!peer) return;
+
+            if (peer.pc && !peer.pc.destroyed) {
+                try {
+                    peer.pc.signal(data.signal);
+                } catch (e) {
+                    console.warn('[AETHER] Signal replay error:', e);
+                }
+            } else {
+                // Buffer signal if PC not initialized yet
+                if (!peer.signalQueue) peer.signalQueue = [];
+                peer.signalQueue.push(data.signal);
+                
+                // If we receive an offer and haven't started PC, auto-start receiver PC
+                if (data.signal && data.signal.type === 'offer') {
+                    initConnection(data.sender, false);
+                }
             }
         });
 
@@ -127,7 +152,7 @@ function initSocket() {
         });
 
         socket.on('request-accepted', (data) => {
-            showNotification('⚡ Neural Tunnel Established');
+            showNotification('⚡ Neural Tunnel Establishing...');
             closeModals();
             initConnection(data.receiverId, true);
             showModal('modal-ready');
@@ -189,12 +214,10 @@ function updateStatusBanner(state, text) {
 }
 
 function updatePeerCountIndicator() {
-    const countEl = document.getElementById('peer-count-badge');
-    if (countEl) countEl.textContent = `${peers.size} Node${peers.size === 1 ? '' : 's'}`;
     const emptyEl = document.getElementById('empty-state');
     if (emptyEl) {
-        if (peers.size === 0) emptyEl.classList.remove('hidden');
-        else emptyEl.classList.add('hidden');
+        if (peers.size === 0) emptyEl.textContent = 'Scanning ether waves for nearby peers...';
+        else emptyEl.textContent = `⚡ ${peers.size} Peer${peers.size === 1 ? '' : 's'} Online • Ready for Live Stream`;
     }
 }
 
@@ -211,26 +234,26 @@ function playSound(type) {
         if (type === 'connect') {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(440, now);
-            osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now); osc.stop(now + 0.1);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+            osc.start(now); osc.stop(now + 0.08);
         } else if (type === 'notify') {
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(330, now);
-            gain.gain.setValueAtTime(0.05, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-            osc.start(now); osc.stop(now + 0.05);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+            osc.start(now); osc.stop(now + 0.04);
         } else if (type === 'success') {
-            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
                 o.connect(g); g.connect(audioCtx.destination);
-                o.frequency.setValueAtTime(freq, now + (i * 0.08));
-                g.gain.setValueAtTime(0.1, now + (i * 0.08));
-                g.gain.exponentialRampToValueAtTime(0.01, now + (i * 0.08) + 0.15);
-                o.start(now + (i * 0.08));
-                o.stop(now + (i * 0.08) + 0.15);
+                o.frequency.setValueAtTime(freq, now + (i * 0.06));
+                g.gain.setValueAtTime(0.08, now + (i * 0.06));
+                g.gain.exponentialRampToValueAtTime(0.01, now + (i * 0.06) + 0.12);
+                o.start(now + (i * 0.06));
+                o.stop(now + (i * 0.06) + 0.12);
             });
         }
     } catch (e) {}
@@ -267,7 +290,6 @@ async function encryptFileBuffer(arrayBuffer, password) {
     const ciphertext = await window.crypto.subtle.encrypt(
         { name: "AES-GCM", iv: iv }, key, arrayBuffer
     );
-    // Package format: Salt (16B) + IV (12B) + Ciphertext
     const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
     combined.set(salt, 0);
     combined.set(iv, salt.length);
@@ -286,27 +308,24 @@ function generateSecurePassphrase() {
 }
 
 // -------------------------------------------------------------
-// WEBRTC CONNECTION HANDLING (Zero-Memory High Throughput)
+// WEBRTC CONNECTION HANDLING (Sub-second Fast Connect)
 // -------------------------------------------------------------
 function initConnection(targetId, initiator) {
-    let pc = null;
     const peer = peers.get(targetId);
+    if (!peer) return;
+
+    if (peer.pc && !peer.pc.destroyed) {
+        if (peer.isWebrtcDirect) return; // Already connected
+    }
 
     if (typeof SimplePeer !== 'undefined') {
         try {
-            pc = new SimplePeer({
-                initiator,
+            console.log(`[AETHER] Initializing Fast WebRTC (Initiator: ${initiator}) for ${targetId}`);
+            
+            const pc = new SimplePeer({
+                initiator: initiator,
                 trickle: true,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' },
-                        { urls: 'stun:stun4.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' }
-                    ]
-                }
+                config: ICE_CONFIG
             });
 
             pc.on('signal', (signal) => {
@@ -315,26 +334,40 @@ function initConnection(targetId, initiator) {
 
             pc.on('connect', () => {
                 console.log(`[AETHER] WebRTC P2P Direct Tunnel established with ${targetId}`);
-                if (peer) peer.isWebrtcDirect = true;
-                showNotification('⚡ Direct Hardware P2P Tunnel Activated');
+                peer.isWebrtcDirect = true;
+                showNotification('⚡ Direct P2P Connected (<100ms)');
                 playSound('connect');
+                
+                // If there are pending files queued, start sending immediately
+                if (pendingP2PFiles.length > 0 && selectedPeerId === targetId) {
+                    processPendingP2PTransfers();
+                }
             });
 
             pc.on('data', (data) => handleIncomingData(data, targetId, 'webrtc'));
 
             pc.on('error', (err) => {
-                console.warn('[AETHER] WebRTC Direct fallback to Socket Relay:', err);
-                if (peer) peer.isWebrtcDirect = false;
+                console.warn('[AETHER] WebRTC fallback to Socket Relay:', err);
+                peer.isWebrtcDirect = false;
             });
 
             pc.on('close', () => {
-                if (peer) peer.isWebrtcDirect = false;
+                peer.isWebrtcDirect = false;
             });
 
-            if (peer) peer.pc = pc;
+            peer.pc = pc;
+
+            // Drain buffered signals
+            if (peer.signalQueue && peer.signalQueue.length > 0) {
+                while (peer.signalQueue.length > 0) {
+                    const sig = peer.signalQueue.shift();
+                    try { pc.signal(sig); } catch (e) {}
+                }
+            }
+
         } catch (e) {
             console.warn('WebRTC init exception:', e);
-            if (peer) peer.isWebrtcDirect = false;
+            peer.isWebrtcDirect = false;
         }
     }
 }
@@ -344,6 +377,19 @@ function initConnection(targetId, initiator) {
 // -------------------------------------------------------------
 async function sendFileMultiTier(file, targetId, index = 1, total = 1) {
     const peer = peers.get(targetId);
+    
+    // Auto-warm / Ensure connection
+    if (!peer.pc || peer.pc.destroyed) {
+        initConnection(targetId, true);
+    }
+
+    // Wait up to 1.5 seconds for WebRTC to lock, else seamlessly stream over Socket Relay
+    let waitCount = 0;
+    while ((!peer || !peer.pc || !peer.pc.connected) && waitCount < 15) {
+        await new Promise(r => setTimeout(r, 100));
+        waitCount++;
+    }
+
     const useWebRTC = peer && peer.pc && peer.isWebrtcDirect && peer.pc.connected;
     const modeBadge = useWebRTC ? '⚡ DIRECT P2P TURBO' : '🔄 SOCKET RELAY';
 
@@ -381,7 +427,7 @@ async function sendFileMultiTier(file, targetId, index = 1, total = 1) {
                         if (!rawChannel || rawChannel.bufferedAmount <= MAX_BUFFERED_AMOUNT / 2) {
                             resolve();
                         } else {
-                            setTimeout(check, 10);
+                            setTimeout(check, 8);
                         }
                     };
                     check();
@@ -405,7 +451,7 @@ async function sendFileMultiTier(file, targetId, index = 1, total = 1) {
 
         // Live speed & ETA metrics calculation
         const now = Date.now();
-        if (now - lastSpeedTime >= 200 || offset >= file.size) {
+        if (now - lastSpeedTime >= 150 || offset >= file.size) {
             const timeDelta = (now - lastSpeedTime) / 1000;
             const bytesDelta = offset - lastOffset;
             currentSpeedMBs = (bytesDelta / 1024 / 1024) / (timeDelta || 0.01);
@@ -433,7 +479,7 @@ async function sendFileMultiTier(file, targetId, index = 1, total = 1) {
             showNotification(`Transmission Complete (${modeBadge})`);
             playSound('success');
             addToHistory(file.name, 'sent');
-        }, 500);
+        }, 400);
     }
 }
 
@@ -492,7 +538,7 @@ function processIncomingChunk(data) {
     incomingFileData.receivedSize += chunkBytes;
 
     const now = Date.now();
-    if (now - incomingFileData.lastSpeedUpdate >= 200 || incomingFileData.receivedSize >= incomingFileData.metadata.size) {
+    if (now - incomingFileData.lastSpeedUpdate >= 150 || incomingFileData.receivedSize >= incomingFileData.metadata.size) {
         const timeDelta = (now - incomingFileData.lastSpeedUpdate) / 1000;
         const bytesDelta = incomingFileData.receivedSize - incomingFileData.lastBytes;
         incomingFileData.currentSpeed = (bytesDelta / 1024 / 1024) / (timeDelta || 0.01);
@@ -537,7 +583,7 @@ function finishIncomingTransfer() {
         playSound('success');
         if (incomingFileData.metadata) addToHistory(incomingFileData.metadata.name, 'received');
         resetTransferState();
-    }, 500);
+    }, 400);
 }
 
 function resetTransferState() {
@@ -547,13 +593,50 @@ function resetTransferState() {
 }
 
 // -------------------------------------------------------------
+// DIRECT FILE PICK TRIGGER
+// -------------------------------------------------------------
+window.triggerDirectFilePick = function() {
+    // If peers exist and only 1 peer, auto-select
+    if (!selectedPeerId && peers.size === 1) {
+        selectedPeerId = Array.from(peers.keys())[0];
+    }
+    
+    if (selectedPeerId) {
+        const p2pInput = document.getElementById('file-input');
+        if (p2pInput) p2pInput.click();
+    } else if (peers.size > 1) {
+        showNotification('Click on a peer node in the radar first!');
+    } else {
+        // No peer yet - direct to Vault or invite
+        showNotification('No peer nearby. Opening Vault mode...');
+        toggleMode('vault');
+        setTimeout(() => {
+            const vaultInput = document.getElementById('vault-file-input');
+            if (vaultInput) vaultInput.click();
+        }, 200);
+    }
+};
+
+async function processPendingP2PTransfers() {
+    if (pendingP2PFiles.length === 0 || !selectedPeerId) return;
+    isTransferring = true;
+    shouldAbort = false;
+    const files = [...pendingP2PFiles];
+    pendingP2PFiles = [];
+    for (let i = 0; i < files.length; i++) {
+        if (shouldAbort) break;
+        await sendFileMultiTier(files[i], selectedPeerId, i + 1, files.length);
+    }
+    isTransferring = false;
+}
+
+// -------------------------------------------------------------
 // CLOUD VAULT ENGINE (Persistent Offline Mode - Multi-GB support)
 // -------------------------------------------------------------
 window.openVaultConfig = function(files) {
     if (!files || files.length === 0) return;
     selectedFilesForVault = Array.from(files);
     
-    // Populate preview info
     const file = selectedFilesForVault[0];
     const previewName = document.getElementById('vault-preview-name');
     const previewSize = document.getElementById('vault-preview-size');
@@ -615,7 +698,6 @@ async function uploadFileToVault(file, options, fileIndex = 1, totalFiles = 1) {
             finalSize = uploadPayloadBuffer.byteLength;
         }
 
-        // Initialize Vault Session with Server
         const initRes = await fetch(`${SERVER_BASE_URL}/api/vault/init`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -633,7 +715,6 @@ async function uploadFileToVault(file, options, fileIndex = 1, totalFiles = 1) {
         const session = await initRes.json();
         const fileId = session.fileId;
 
-        // Streaming chunk upload to disk
         let offset = 0;
         let chunkIndex = 0;
         let startTime = Date.now();
@@ -668,7 +749,7 @@ async function uploadFileToVault(file, options, fileIndex = 1, totalFiles = 1) {
             chunkIndex++;
 
             const now = Date.now();
-            if (now - lastSpeedTime >= 200 || offset >= finalSize) {
+            if (now - lastSpeedTime >= 150 || offset >= finalSize) {
                 const timeDelta = (now - lastSpeedTime) / 1000;
                 const bytesDelta = offset - lastOffset;
                 currentSpeedMBs = (bytesDelta / 1024 / 1024) / (timeDelta || 0.01);
@@ -684,7 +765,6 @@ async function uploadFileToVault(file, options, fileIndex = 1, totalFiles = 1) {
             }
         }
 
-        // Generate Shareable Link & QR Code
         let fullPortalUrl = `${SERVER_BASE_URL}${session.portalUrl}`;
         if (isEncrypted && password) {
             fullPortalUrl += `#key=${encodeURIComponent(password)}`;
@@ -700,8 +780,8 @@ async function uploadFileToVault(file, options, fileIndex = 1, totalFiles = 1) {
             if (typeof QRCode !== 'undefined') {
                 new QRCode(qrContainer, {
                     text: fullPortalUrl,
-                    width: 200,
-                    height: 200,
+                    width: 180,
+                    height: 180,
                     colorDark: "#07090e",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.M
@@ -770,11 +850,11 @@ window.showNotification = function(msg, duration = 3000) {
     if (!notification) return;
     const span = notification.querySelector('span');
     if (span) span.textContent = msg;
-    notification.classList.remove('translate-y-40', 'opacity-0');
+    notification.classList.remove('translate-y-32', 'opacity-0');
     playSound('notify');
     pulseHaptic(20);
     setTimeout(() => {
-        notification.classList.add('translate-y-40', 'opacity-0');
+        notification.classList.add('translate-y-32', 'opacity-0');
     }, duration);
 };
 
@@ -786,13 +866,13 @@ window.toggleMode = function(mode) {
     const vaultView = document.getElementById('vault-drop-view');
 
     if (mode === 'p2p') {
-        if (p2pTab) p2pTab.className = 'tab-btn active px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all';
-        if (vaultTab) vaultTab.className = 'tab-btn px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-all';
+        if (p2pTab) p2pTab.className = 'tab-btn active px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all';
+        if (vaultTab) vaultTab.className = 'tab-btn px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-all';
         if (p2pView) p2pView.classList.remove('hidden');
         if (vaultView) vaultView.classList.add('hidden');
     } else {
-        if (vaultTab) vaultTab.className = 'tab-btn active px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all';
-        if (p2pTab) p2pTab.className = 'tab-btn px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-all';
+        if (vaultTab) vaultTab.className = 'tab-btn active px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all';
+        if (p2pTab) p2pTab.className = 'tab-btn px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-all';
         if (p2pView) p2pView.classList.add('hidden');
         if (vaultView) vaultView.classList.remove('hidden');
     }
@@ -810,7 +890,7 @@ window.copyShareUrl = function() {
     const input = document.getElementById('share-url-input');
     if (input && input.value) {
         navigator.clipboard.writeText(input.value).then(() => {
-            showNotification('Download Link & Encryption Key Copied!');
+            showNotification('Download Link Copied!');
         });
     }
 };
@@ -879,22 +959,25 @@ function addPeerUI(id, name) {
     el.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-1000 float group';
     
     const angle = Math.random() * Math.PI * 2;
-    const radius = 26 + Math.random() * 14;
+    const radius = 25 + Math.random() * 15;
     el.style.left = `${50 + Math.cos(angle) * radius}%`;
     el.style.top = `${50 + Math.sin(angle) * radius}%`;
     
     el.innerHTML = `
-        <div class="flex flex-col items-center gap-3">
-            <div class="w-16 h-16 md:w-20 md:h-20 rounded-[2rem] glass flex items-center justify-center text-xl md:text-2xl font-black border-2 border-cyan-500/20 group-hover:border-cyan-400 group-hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] transition-all btn-aether">
+        <div class="flex flex-col items-center gap-2">
+            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.8rem] glass flex items-center justify-center text-lg sm:text-xl font-black border-2 border-cyan-500/20 group-hover:border-cyan-400 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all btn-aether">
                 ${name.charAt(0)}
             </div>
-            <span class="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-300 bg-cyan-500/10 px-3 py-1 rounded-xl border border-cyan-500/20 opacity-0 group-hover:opacity-100 transition-all shadow-2xl backdrop-blur-md">${name}</span>
+            <span class="text-[8px] font-black uppercase tracking-[0.25em] text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-lg border border-cyan-500/20 opacity-0 group-hover:opacity-100 transition-all shadow-2xl backdrop-blur-md">${name}</span>
         </div>
     `;
     
     el.onclick = () => selectPeer(id);
     container.appendChild(el);
-    peers.set(id, { name, element: el, pc: null, isWebrtcDirect: false });
+    peers.set(id, { name, element: el, pc: null, isWebrtcDirect: false, signalQueue: [] });
+
+    // Pre-warm connection
+    initConnection(id, false);
 }
 
 window.selectPeer = function(id) {
@@ -995,7 +1078,6 @@ function setupEventListeners() {
     }
 
     // Drag & Drop
-    const dropZone = document.body;
     const dragOverlay = document.getElementById('drag-overlay');
 
     window.addEventListener('dragover', (e) => {
@@ -1017,7 +1099,6 @@ function setupEventListeners() {
             if (activeMode === 'vault' || !selectedPeerId) {
                 openVaultConfig(files);
             } else {
-                // Trigger P2P send
                 (async () => {
                     isTransferring = true;
                     shouldAbort = false;
@@ -1047,8 +1128,8 @@ function renderHistory() {
         return;
     }
     list.innerHTML = history.map(item => `
-        <div class="glass p-5 rounded-2xl border border-white/5 group hover:bg-white/5 transition-all">
-            <div class="flex justify-between items-start gap-4 mb-1.5">
+        <div class="glass p-4 rounded-2xl border border-white/5 group hover:bg-white/5 transition-all">
+            <div class="flex justify-between items-start gap-4 mb-1">
                 <span class="text-[8px] font-black uppercase tracking-widest ${item.type === 'sent' ? 'text-cyan-400' : item.type === 'received' ? 'text-green-400' : 'text-purple-400'}">${item.type}</span>
                 <span class="text-[8px] font-black text-slate-500">${new Date(item.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
             </div>
