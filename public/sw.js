@@ -1,26 +1,20 @@
-const CACHE_NAME = 'aether-v4-quantum';
+const CACHE_NAME = 'aether-v5-ultra';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/void',
   '/logo.png',
   '/manifest.json',
-  '/app.js',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap',
-  'https://cdn.socket.io/4.8.1/socket.io.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+  '/app.js'
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching critical application assets');
-      return cache.addAll(ASSETS_TO_CACHE.filter(url => !url.startsWith('http')));
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -29,7 +23,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[SW] Purging stale cache:', key);
+            console.log('[SW] Purging old cache version:', key);
             return caches.delete(key);
           }
         })
@@ -39,13 +33,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Exclude API, socket.io, and vault downloads from cache
   const url = event.request.url;
-  if (url.includes('/socket.io/') || url.includes('/api/') || url.includes('/v/')) {
+  // Always fetch fresh HTML, API, and Socket.io requests from network
+  if (url.includes('/socket.io/') || url.includes('/api/') || url.includes('/v/') || event.request.destination === 'document') {
     return;
   }
 
-  // Network-first with cache fallback
+  // Network-first with cache fallback for static assets
   event.respondWith(
     fetch(event.request).then((response) => {
       if (response && response.status === 200) {

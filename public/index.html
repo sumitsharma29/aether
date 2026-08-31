@@ -23,32 +23,47 @@
             --secondary: 260 85% 65%;
             --bg: 240 10% 4%;
         }
+
+        * { box-sizing: border-box; }
         
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: #07090e;
+            background-color: #06080e;
             color: #f8fafc;
             overflow-x: hidden;
+            min-height: 100vh;
         }
 
-        #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.5; }
-        .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.15) 0, transparent 40%), radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.15) 0, transparent 40%); filter: blur(80px); }
+        #particle-canvas { position: fixed; inset: 0; z-index: -2; opacity: 0.45; }
+        .mesh-bg { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 15% 20%, rgba(6, 182, 212, 0.15) 0, transparent 40%), radial-gradient(circle at 85% 80%, rgba(99, 102, 241, 0.15) 0, transparent 40%); filter: blur(80px); }
 
-        .glass { background: rgba(12, 17, 29, 0.5); backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .glass-card { background: rgba(15, 22, 38, 0.6); backdrop-filter: blur(30px); border: 1px solid rgba(34, 211, 238, 0.15); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+        .glass { background: rgba(12, 17, 29, 0.6); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card { background: rgba(15, 22, 38, 0.7); backdrop-filter: blur(30px); border: 1px solid rgba(34, 211, 238, 0.18); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); }
 
-        .btn-aether { background: linear-gradient(135deg, #06b6d4, #6366f1); transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); position: relative; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.6); }
-        .btn-aether:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.8); filter: brightness(1.2); }
+        .btn-aether {
+            background: linear-gradient(135deg, #06b6d4, #6366f1);
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.6);
+        }
+        .btn-aether:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.8);
+            filter: brightness(1.15);
+        }
 
         .text-gradient { background: linear-gradient(to right, #60efff, #a855f7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
-        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
-        .reveal.active { opacity: 1; transform: translateY(0); }
+        .logo-blend {
+            mix-blend-mode: screen;
+            filter: brightness(1.2) contrast(1.1);
+        }
 
         #mouse-glow {
             position: fixed;
-            width: 500px;
-            height: 500px;
+            width: 450px;
+            height: 450px;
             background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
             border-radius: 50%;
             pointer-events: none;
@@ -63,86 +78,94 @@
     <canvas id="particle-canvas"></canvas>
     <div class="mesh-bg"></div>
 
-    <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-50 px-8 md:px-14 py-6 flex justify-between items-center glass border-b border-white/5" id="main-nav">
-        <div class="flex items-center gap-4 group cursor-pointer" onclick="location.href='/'">
-            <img src="logo.png" alt="AETHER" class="w-11 h-11 object-contain group-hover:scale-105 transition-transform">
+    <!-- Navigation Header -->
+    <nav class="sticky top-0 w-full z-50 px-6 md:px-12 py-4 flex justify-between items-center glass border-b border-white/5" id="main-nav">
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="location.href='/'">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                <img src="logo.png" alt="AETHER Logo" class="w-8 h-8 object-contain logo-blend">
+            </div>
             <div>
-                <h1 class="text-2xl font-black tracking-tighter text-white leading-none">AETHER</h1>
+                <h1 class="text-xl sm:text-2xl font-black tracking-tighter text-white leading-none">AETHER</h1>
                 <p class="text-[8px] uppercase tracking-[0.3em] font-black text-cyan-400 opacity-80">Quantum Sharing System</p>
             </div>
         </div>
-        <a href="/void" class="btn-aether px-7 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-black no-underline">
-            Launch App
+        <a href="/void" class="btn-aether px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-black no-underline shadow-lg">
+            Launch App 🚀
         </a>
     </nav>
 
-    <!-- Hero -->
-    <main class="min-h-screen flex flex-col items-center justify-center pt-28 px-6 text-center">
-        <div class="max-w-5xl">
-            <div class="mb-8 relative inline-block reveal active">
-                <img src="logo.png" alt="AETHER" class="w-24 h-24 md:w-32 md:h-32 mx-auto animate-pulse">
+    <!-- Hero Section -->
+    <main class="flex-grow flex flex-col items-center justify-center px-6 py-12 md:py-20 text-center">
+        <div class="max-w-4xl">
+            <!-- Hero Logo -->
+            <div class="mb-6 inline-block">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-3xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center p-3 shadow-[0_0_50px_rgba(6,182,212,0.3)] animate-pulse">
+                    <img src="logo.png" alt="AETHER Logo" class="w-full h-full object-contain logo-blend">
+                </div>
             </div>
 
-            <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full glass border border-cyan-500/30 text-cyan-300 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] mb-6">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-cyan-500/30 text-cyan-300 text-[10px] md:text-xs font-black uppercase tracking-[0.25em] mb-4">
                 ⚡ Direct WebRTC P2P + ☁️ Encrypted Cloud Vault
             </div>
 
-            <h2 class="text-5xl md:text-8xl font-black tracking-tighter mb-8 leading-tight reveal active">
+            <h2 class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tighter mb-4 leading-tight">
                 Beyond <span class="text-gradient">Sharing.</span>
             </h2>
 
-            <p class="text-lg md:text-2xl text-slate-400 font-medium mb-12 max-w-3xl mx-auto leading-relaxed reveal active">
-                The world's fastest file transmission engine. Direct zero-RAM device-to-device streaming, or store in the <span class="text-cyan-300 font-bold">Encrypted Cloud Vault</span> so you can close your browser while recipients download at hardware speed.
+            <p class="text-base sm:text-lg md:text-xl text-slate-400 font-medium mb-8 max-w-2xl mx-auto leading-relaxed">
+                The world's fastest file transmission engine. Stream unlimited files live browser-to-browser at hardware velocity, or store in the <span class="text-cyan-300 font-bold">Encrypted Cloud Vault</span> so you can close your browser anytime.
             </p>
 
-            <div class="flex flex-col sm:flex-row gap-5 justify-center items-center reveal active">
-                <a href="/void" class="btn-aether px-12 py-5 rounded-[2rem] text-lg font-black tracking-tight text-black no-underline shadow-2xl">
-                    Enter the Void 🚀
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="/void" class="btn-aether px-10 py-4 rounded-2xl text-base font-black tracking-tight text-black no-underline shadow-2xl flex items-center gap-2">
+                    <span>Enter the Void 🚀</span>
+                </a>
+                <a href="/void?mode=vault" class="glass px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-wider text-slate-300 hover:text-white no-underline transition-all border border-cyan-500/20 hover:border-cyan-400">
+                    ☁️ Open Cloud Vault
                 </a>
             </div>
         </div>
     </main>
 
-    <!-- Core Features Grid -->
-    <section class="py-24 px-8 max-w-7xl mx-auto">
-        <div class="text-center mb-16">
-            <span class="text-cyan-400 font-black tracking-[0.3em] uppercase text-xs">Architectural Supremacy</span>
-            <h3 class="text-4xl md:text-5xl font-black tracking-tighter mt-2 text-white">Engineered For Zero Limits</h3>
+    <!-- Core Features Section -->
+    <section class="py-16 px-6 max-w-6xl mx-auto">
+        <div class="text-center mb-12">
+            <span class="text-cyan-400 font-black tracking-[0.3em] uppercase text-[10px]">Architectural Supremacy</span>
+            <h3 class="text-3xl md:text-4xl font-black tracking-tighter mt-1 text-white">Engineered For Zero Limits</h3>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Card 1 -->
-            <div class="glass-card p-10 rounded-[3rem] text-left border border-cyan-500/20 hover:border-cyan-400 transition-all">
-                <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-6 border border-cyan-500/20">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <div class="glass-card p-8 rounded-[2.5rem] text-left border border-cyan-500/20 hover:border-cyan-400 transition-all">
+                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-5 border border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 </div>
-                <h4 class="text-2xl font-black text-white mb-3">Direct P2P Turbo</h4>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">
-                    Browser-to-browser WebRTC DTLS data pipes with zero-RAM flow control. No file size ceiling — stream multi-gigabyte files directly at hardware line speed.
+                <h4 class="text-xl font-black text-white mb-2">Direct P2P Turbo</h4>
+                <p class="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4">
+                    Browser-to-browser WebRTC DTLS data channels with 64KB zero-RAM flow control. No file size limits — stream multi-gigabyte files directly at hardware line speed.
                 </p>
                 <span class="text-xs font-bold text-cyan-400">⚡ Up to 100+ MB/s</span>
             </div>
 
             <!-- Card 2 -->
-            <div class="glass-card p-10 rounded-[3rem] text-left border border-purple-500/20 hover:border-purple-400 transition-all">
-                <div class="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-6 border border-purple-500/20">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+            <div class="glass-card p-8 rounded-[2.5rem] text-left border border-purple-500/20 hover:border-purple-400 transition-all">
+                <div class="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-5 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
                 </div>
-                <h4 class="text-2xl font-black text-white mb-3">Persistent Cloud Vault</h4>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                <h4 class="text-xl font-black text-white mb-2">Persistent Cloud Vault</h4>
+                <p class="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4">
                     Close your laptop or website once uploaded. Customize link validity from 1 Hour to 7 Days or burn on download. Recipient downloads anytime.
                 </p>
                 <span class="text-xs font-bold text-purple-400">☁️ Offline Sharing Ready</span>
             </div>
 
             <!-- Card 3 -->
-            <div class="glass-card p-10 rounded-[3rem] text-left border border-indigo-500/20 hover:border-indigo-400 transition-all">
-                <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <div class="glass-card p-8 rounded-[2.5rem] text-left border border-indigo-500/20 hover:border-indigo-400 transition-all">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-5 border border-indigo-500/20 shadow-[0_0_30px_rgba(99,102,241,0.2)]">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 </div>
-                <h4 class="text-2xl font-black text-white mb-3">AES-256 E2EE Encryption</h4>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                <h4 class="text-xl font-black text-white mb-2">AES-256 E2EE Encryption</h4>
+                <p class="text-slate-400 text-xs sm:text-sm leading-relaxed mb-4">
                     Client-side Web Crypto PBKDF2/AES-GCM encryption. The server and third parties only see ciphertext. Keys are never transmitted in plaintext.
                 </p>
                 <span class="text-xs font-bold text-indigo-400">🔒 Military-Grade Security</span>
@@ -151,11 +174,11 @@
     </section>
 
     <!-- Footer -->
-    <footer class="py-12 px-8 text-center text-slate-500 text-xs font-bold uppercase tracking-widest border-t border-white/5 mt-auto">
+    <footer class="py-8 px-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest border-t border-white/5 mt-auto">
         <p>AETHER Quantum Transfer Engine • Built for Infinite Velocity</p>
     </footer>
 
-    <!-- Interactive Mouse Particles -->
+    <!-- Interactive Mouse Glow & Particles -->
     <script>
         const canvas = document.getElementById('particle-canvas');
         const ctx = canvas.getContext('2d');
@@ -171,7 +194,7 @@
         function initParticles() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             particles = [];
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 45; i++) {
                 particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, size: Math.random() * 2 + 1, density: (Math.random() * 20) + 1 });
             }
         }
@@ -192,7 +215,7 @@
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
                 for (let j = i + 1; j < particles.length; j++) {
                     const p2 = particles[j]; const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-                    if (dist < 150) { ctx.lineWidth = 1 - dist / 150; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+                    if (dist < 140) { ctx.lineWidth = 1 - dist / 140; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
                 }
             });
             requestAnimationFrame(drawParticles);
